@@ -15,7 +15,8 @@ import {
   diagramData,
   viewTransform,
   interactionState,
-  addNewPointToLine
+  addNewPointToLine,
+  deletePointFromLine
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
@@ -29,7 +30,7 @@ import { findClosestLineSegment } from '../utils/geometry';
  * @param canvas - Canvas element
  */
 export function canvasInteraction(canvas: HTMLCanvasElement) {
-  // Add double-click handler for inserting new points on lines
+  // Add double-click handler for inserting or deleting points
   function handleDoubleClick(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
@@ -41,11 +42,22 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     const diagram = get(diagramData);
     if (!diagram) return;
     
-    // Find closest line segment
-    const result = findClosestLineSegment(worldPos, diagram, AppConfig.canvas.selectionThreshold * 2);
+    // First check if we clicked on an existing point
+    const selectionRadius = AppConfig.canvas.selectionThreshold * 
+      Math.pow(currentTransform.scale, -0.3);
     
-    if (result) {
-      addNewPointToLine(result.object, result.position, result.index);
+    const clickedPoint = diagram.findPointNear(worldPos, selectionRadius);
+    
+    if (clickedPoint) {
+      // Attempt to delete the point
+      deletePointFromLine(clickedPoint);
+    } else {
+      // Find closest line segment to add a new point
+      const result = findClosestLineSegment(worldPos, diagram, AppConfig.canvas.selectionThreshold * 2);
+      
+      if (result) {
+        addNewPointToLine(result.object, result.position, result.index);
+      }
     }
   }
 

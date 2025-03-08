@@ -230,6 +230,67 @@ export class SparqlService {
       throw error;
     }
   }
+
+  /**
+   * Build a query to delete a point
+   * 
+   * @param pointIri - IRI of the point to delete
+   * @param cimNamespace - CIM namespace
+   * @returns SPARQL delete query
+   */
+  buildDeletePointQuery(
+    pointIri: string,
+    cimNamespace: string
+  ): string {
+    return `
+      PREFIX cim: <${cimNamespace}>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      
+      DELETE {
+        <${pointIri}> ?p ?o .
+      }
+      WHERE {
+        <${pointIri}> ?p ?o .
+      }
+    `;
+  }
+
+  /**
+   * Delete a point and update sequence numbers
+   * 
+   * @param pointIri - IRI of the point to delete
+   * @param objectPoints - All remaining points of the object with updated sequence numbers
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async deletePoint(
+    pointIri: string,
+    objectPoints: Array<{iri: string, sequenceNumber: number}>,
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // First delete the point
+      const deleteQuery = this.buildDeletePointQuery(
+        pointIri,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(deleteQuery);
+      
+      // Then update all sequence numbers
+      const updateQuery = this.buildUpdateSequenceNumbersQuery(
+        objectPoints,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(updateQuery);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting point:', error);
+      throw error;
+    }
+  }
 }
 
 

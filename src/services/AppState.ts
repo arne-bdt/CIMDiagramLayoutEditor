@@ -11,6 +11,7 @@ import { DiagramObjectModel } from '../models/DiagramModel';
 import { PointModel } from '../models/PointModel';
 import { AppConfig } from '../utils/config';
 import { sparqlService } from './SparqlService';
+import { diagramService } from './DiagramService';
 import { v4 as uuidv4 } from 'uuid';
 
 // CGMES state
@@ -464,6 +465,102 @@ export async function addNewPointToLine(
       
       // Update the diagram
       diagramData.set(currentDiagram);
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Delete a point from a line in the diagram
+ * 
+ * @param point - Point to delete
+ */
+export async function deletePointFromLine(point: PointModel): Promise<void> {
+  if (!point) return;
+  
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram) return;
+  
+  // Get the parent object
+  const object = point.parentObject;
+  if (!object) {
+    updateStatus('Cannot delete point: parent object not found');
+    return;
+  }
+  
+  try {
+    // Check if the point is first or last in its object
+    const pointIndex = object.points.findIndex(p => p.iri === point.iri);
+    
+    if (pointIndex === 0 || pointIndex === object.points.length - 1) {
+      updateStatus('Cannot delete first or last point of a line or shape');
+      return;
+    }
+    
+    // At this point we know we can delete the point
+    setLoading(true);
+    updateStatus('Deleting point...');
+    
+    // Remove the point from the object's points array
+    object.points.splice(pointIndex, 1);
+    
+    // Update sequence numbers for all remaining points
+    object.points.forEach((p, index) => {
+      p.sequenceNumber = index;
+    });
+    
+    // Remove from diagram points collection
+    const diagramPointIndex = currentDiagram.points.findIndex(p => p.iri === point.iri);
+    if (diagramPointIndex >= 0) {
+      currentDiagram.points.splice(diagramPointIndex, 1);
+    }
+    
+    // Update the diagram in the UI
+    diagramData.set(currentDiagram);
+    
+    // Get the current namespace
+    const namespace = get(cimNamespace);
+    
+    // Prepare sequence number updates for all points in the object
+    const sequenceUpdates = object.points.map(p => ({
+      iri: p.iri,
+      sequenceNumber: p.sequenceNumber
+    }));
+    
+    // Persist changes to the database
+    await sparqlService.deletePoint(
+      point.iri,
+      sequenceUpdates,
+      namespace
+    );
+    
+    updateStatus('Point deleted successfully');
+    
+    // Clear selection if the deleted point was selected
+    interactionState.update(state => {
+      if (state.selectedPoints.has(point.iri)) {
+        const newSelectedPoints = new Set(state.selectedPoints);
+        newSelectedPoints.delete(point.iri);
+        return {
+          ...state,
+          selectedPoints: newSelectedPoints
+        };
+      }
+      return state;
+    });
+    
+  } catch (error) {
+    console.error('Error deleting point:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // If there was an error, revert the change in the UI
+    if (currentDiagram && object) {
+      // Reload the diagram
+      const diagramIri = get(selectedDiagram);
+      if (diagramIri) {
+        await diagramService.loadDiagramLayout(diagramIri);
+      }
     }
   } finally {
     setLoading(false);
