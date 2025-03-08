@@ -8,7 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve('./src')
-    }
+    },
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.svelte']
   },
   build: {
     outDir: 'dist',
@@ -17,6 +18,9 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html')
       }
     }
+  },
+  optimizeDeps: {
+    include: ['svelte']
   },
   server: {
     host: true,

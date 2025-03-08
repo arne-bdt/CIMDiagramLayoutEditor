@@ -1,4 +1,9 @@
-import { Point2D, ViewTransform, Bounds, DrawingPointConfig } from '../models/types';
+import { 
+  Point2D, 
+  ViewTransform, 
+  Bounds, 
+  DrawingPointConfig 
+} from '../models/types';
 
 /**
  * Calculate the squared distance between two points
