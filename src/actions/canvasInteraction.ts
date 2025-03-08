@@ -16,12 +16,15 @@ import {
   viewTransform,
   interactionState,
   addNewPointToLine,
-  deletePointFromLine
+  deletePointFromLine,
+  copySelectedDiagramObjects,
+  pasteDiagramObjects
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
 import { screenToWorld } from '../utils/geometry';
 import { findClosestLineSegment } from '../utils/geometry';
+import type { Point2D } from '@/models/types';
 
 /**
  * Svelte action for canvas interactions
@@ -30,6 +33,24 @@ import { findClosestLineSegment } from '../utils/geometry';
  * @param canvas - Canvas element
  */
 export function canvasInteraction(canvas: HTMLCanvasElement) {
+  // Track mouse position for paste operations
+  let currentMousePosition: Point2D = { x: 0, y: 0 };
+  
+  // Handle keyboard events for copy/paste
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.ctrlKey) {
+      if (e.key === 'c') {
+        // Copy operation
+        copySelectedDiagramObjects();
+      } else if (e.key === 'v') {
+        // Paste operation
+        const currentTransform = get(viewTransform);
+        const worldPos = screenToWorld(currentMousePosition.x, currentMousePosition.y, currentTransform);
+        pasteDiagramObjects(worldPos);
+      }
+    }
+  }
+  
   // Add double-click handler for inserting or deleting points
   function handleDoubleClick(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
@@ -173,6 +194,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   canvas.addEventListener('mouseup', handleMouseUp);
   canvas.addEventListener('wheel', handleWheel);
   canvas.addEventListener('dblclick', handleDoubleClick);
+  window.addEventListener('keydown', handleKeyDown);
   
   return {
     destroy() {
@@ -182,6 +204,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('dblclick', handleDoubleClick);
+      window.removeEventListener('keydown', handleKeyDown);
     }
   };
 }

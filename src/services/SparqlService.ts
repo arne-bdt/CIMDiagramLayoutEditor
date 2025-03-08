@@ -400,9 +400,96 @@ export class SparqlService {
       throw error;
     }
   }
+
+  /**
+   * Build a query to insert cloned DiagramObjects and their points
+   * 
+   * @param diagramIri - Diagram IRI
+   * @param objects - New diagram objects
+   * @param points - New diagram points
+   * @param cimNamespace - CIM namespace
+   * @returns SPARQL insert query
+   */
+  buildInsertClonedObjectsQuery(
+    diagramIri: string,
+    objects: any[],
+    points: any[],
+    cimNamespace: string
+  ): string {
+    let insertClause = 'INSERT DATA {\n';
+    
+    // Add triples for objects
+    objects.forEach(obj => {
+      insertClause += `  <${obj.iri}> rdf:type ${obj.isText ? 'cim:TextDiagramObject' : 'cim:DiagramObject'} .\n`;
+      insertClause += `  <${obj.iri}> cim:DiagramObject.Diagram <${diagramIri}> .\n`;
+      
+      if (obj.drawingOrder !== undefined) {
+        insertClause += `  <${obj.iri}> cim:DiagramObject.drawingOrder "${obj.drawingOrder}"^^xsd:integer .\n`;
+      }
+      
+      if (obj.isPolygon !== undefined) {
+        insertClause += `  <${obj.iri}> cim:DiagramObject.isPolygon "${obj.isPolygon}"^^xsd:boolean .\n`;
+      }
+      
+      if (obj.isText && obj.textContent) {
+        insertClause += `  <${obj.iri}> cim:TextDiagramObject.text "${obj.textContent.replace(/"/g, '\\"')}" .\n`;
+      }
+    });
+    
+    // Add triples for points
+    points.forEach(point => {
+      insertClause += `  <${point.iri}> rdf:type cim:DiagramObjectPoint .\n`;
+      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.DiagramObject <${point.parentObject.iri}> .\n`;
+      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.xPosition "${point.x}"^^xsd:float .\n`;
+      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.yPosition "${point.y}"^^xsd:float .\n`;
+      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.sequenceNumber "${point.sequenceNumber}"^^xsd:integer .\n`;
+    });
+    
+    insertClause += '}';
+    
+    return `
+      PREFIX cim: <${cimNamespace}>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+      
+      ${insertClause}
+    `;
+  }
+
+  /**
+   * Insert cloned DiagramObjects and their points
+   * 
+   * @param diagramIri - Diagram IRI
+   * @param objects - New diagram objects
+   * @param points - New diagram points
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async insertClonedObjects(
+    diagramIri: string,
+    objects: any[],
+    points: any[],
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // Build query to insert objects and points
+      const query = this.buildInsertClonedObjectsQuery(
+        diagramIri,
+        objects,
+        points,
+        cimNamespace
+      );
+      
+      // Execute query
+      await this.executeUpdate(query);
+      
+      return true;
+    } catch (error) {
+      console.error('Error inserting cloned objects:', error);
+      throw error;
+    }
+  }
 }
-
-
 
 // Create singleton instance for use throughout the application
 export const sparqlService = new SparqlService('');

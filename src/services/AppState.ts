@@ -3,7 +3,8 @@ import type {
   ViewTransform, 
   InteractionState, 
   Point2D, 
-  PointUpdateData
+  PointUpdateData,
+  Bounds
 } from '../models/types';
 import { InteractionMode, CGMESVersion } from '../models/types';
 import type { DiagramModel } from '../models/DiagramModel';
@@ -649,5 +650,290 @@ export async function togglePolygonProperty(
     }
   } finally {
     setLoading(false);
+  }
+}
+
+/**
+ * Copy selected points' parent DiagramObjects to clipboard
+ * This ensures we always copy complete DiagramObjects, not partial selections
+ */
+export function copySelectedDiagramObjects(): void {
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
+  
+  if (!currentDiagram || currentState.selectedPoints.size === 0) {
+    updateStatus('Nothing selected to copy');
+    return;
+  }
+  
+  // Find all parent DiagramObjects of selected points
+  const objectIris = new Set<string>();
+  
+  currentState.selectedPoints.forEach(pointIri => {
+    const point = currentDiagram.points.find(p => p.iri === pointIri);
+    if (point && point.parentObject) {
+      objectIris.add(point.parentObject.iri);
+    }
+  });
+  
+  if (objectIris.size === 0) {
+    updateStatus('No objects to copy');
+    return;
+  }
+  
+  // Write object IRIs to clipboard
+  const clipboardText = Array.from(objectIris).join('\n');
+  navigator.clipboard.writeText(clipboardText)
+    .then(() => {
+      // Select all points of the copied objects
+      selectAllPointsOfObjects(objectIris);
+      updateStatus(`Copied ${objectIris.size} diagram object(s)`);
+    })
+    .catch(err => {
+      console.error('Error writing to clipboard:', err);
+      updateStatus('Error copying to clipboard');
+    });
+}
+
+/**
+ * Select all points that belong to the given DiagramObjects
+ * 
+ * @param objectIris - Set of DiagramObject IRIs
+ */
+function selectAllPointsOfObjects(objectIris: Set<string>): void {
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram) return;
+  
+  // Create a new set of selected points
+  const newSelectedPoints = new Set<string>();
+  
+  // Find all points that belong to the objects
+  currentDiagram.points.forEach(point => {
+    if (point.parentObject && objectIris.has(point.parentObject.iri)) {
+      newSelectedPoints.add(point.iri);
+    }
+  });
+  
+  // Update selection state
+  interactionState.update(state => ({
+    ...state,
+    selectedPoints: newSelectedPoints
+  }));
+}
+
+/**
+ * Calculate bounds of selected DiagramObjects
+ * 
+ * @param objectIris - Set of DiagramObject IRIs
+ * @returns Bounds of selected objects
+ */
+function getObjectsBounds(objectIris: Set<string>): Bounds {
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram || objectIris.size === 0) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+  
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  
+  currentDiagram.points.forEach(point => {
+    if (point.parentObject && objectIris.has(point.parentObject.iri)) {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    }
+  });
+  
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Calculate center point of bounds
+ * 
+ * @param bounds - Bounds to find center of
+ * @returns Center point
+ */
+function getBoundsCenter(bounds: Bounds): Point2D {
+  return {
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2
+  };
+}
+
+/**
+ * Paste copied DiagramObjects at the specified position
+ * 
+ * @param pastePosition - Position to paste at (will be the center of pasted objects)
+ */
+export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void> {
+  // Read object IRIs from clipboard
+  let clipboardText: string;
+  try {
+    clipboardText = await navigator.clipboard.readText();
+  } catch (err) {
+    console.error('Error reading from clipboard:', err);
+    updateStatus('Error reading from clipboard');
+    return;
+  }
+  
+  // Parse object IRIs
+  const objectIris = new Set<string>(
+    clipboardText.split('\n').filter(iri => iri.trim() !== '')
+  );
+  
+  if (objectIris.size === 0) {
+    updateStatus('No valid diagram objects in clipboard');
+    return;
+  }
+  
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram) {
+    updateStatus('No diagram loaded');
+    return;
+  }
+  
+  // Start loading
+  setLoading(true);
+  console.log(`Pasting ${objectIris.size} diagram objects...`);
+  updateStatus(`Pasting ${objectIris.size} diagram objects...`);
+  
+  try {
+    // Find all objects with their points
+    const originalObjects = currentDiagram.objects.filter(obj => 
+      objectIris.has(obj.iri)
+    );
+    
+    if (originalObjects.length === 0) {
+      updateStatus('No matching objects found in diagram');
+      setLoading(false);
+      return;
+    }
+    
+    // Calculate bounds of selected objects
+    const bounds = getObjectsBounds(objectIris);
+    
+    // Calculate center of bounds
+    const boundsCenter = getBoundsCenter(bounds);
+    
+    // Calculate offset from bounds center to paste position
+    const offsetX = pastePosition.x - boundsCenter.x;
+    const offsetY = pastePosition.y - boundsCenter.y;
+    
+    // Create copies of objects and points
+    const newObjects: DiagramObjectModel[] = [];
+    const newPoints: PointModel[] = [];
+    const newSelectedPoints = new Set<string>();
+    
+    // Map from original IRI to new IRI for object references
+    const iriMap = new Map<string, string>();
+    
+    // First create new objects
+    for (const origObject of originalObjects) {
+      // Generate new IRI
+      const newObjectIri = `http://tempuri.org/diagramObject/${uuidv4()}`;
+      iriMap.set(origObject.iri, newObjectIri);
+      
+      // Create copy of the object
+      const newObject = new DiagramObjectModel(
+        newObjectIri,
+        origObject.drawingOrder,
+        origObject.isPolygon,
+        origObject.isText,
+        origObject.textContent
+      );
+      
+      newObjects.push(newObject);
+    }
+    
+    // Then create new points for each object
+    for (const origObject of originalObjects) {
+      const newObjectIri = iriMap.get(origObject.iri);
+      if (!newObjectIri) continue;
+      
+      const newObject = newObjects.find(obj => obj.iri === newObjectIri);
+      if (!newObject) continue;
+      
+      // Create new points with adjusted positions
+      for (const origPoint of origObject.points) {
+        const newPointIri = `http://tempuri.org/point/${uuidv4()}`;
+        
+        // Apply offset to position
+        const newX = origPoint.x + offsetX;
+        const newY = origPoint.y + offsetY;
+        
+        const newPoint = new PointModel(
+          newPointIri,
+          newX,
+          newY,
+          origPoint.sequenceNumber,
+          newObject
+        );
+        
+        newObject.addPoint(newPoint);
+        newPoints.push(newPoint);
+        newSelectedPoints.add(newPointIri);
+      }
+    }
+    
+    // Add new objects and points to the diagram
+    for (const obj of newObjects) {
+      currentDiagram.addObject(obj);
+    }
+    
+    for (const point of newPoints) {
+      currentDiagram.addPoint(point);
+    }
+    
+    // Update diagram
+    diagramData.set(currentDiagram);
+    
+    // Clear original selection and select only the new points
+    interactionState.update(state => ({
+      ...state,
+      selectedPoints: newSelectedPoints
+    }));
+    
+    // Save to SPARQL
+    await savePastedObjectsToSparql(newObjects, newPoints);
+    
+    updateStatus(`Pasted ${newObjects.length} diagram objects`);
+  } catch (error) {
+    console.error('Error pasting diagram objects:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Save pasted objects and points to the SPARQL endpoint
+ * 
+ * @param objects - New diagram objects
+ * @param points - New diagram points
+ */
+async function savePastedObjectsToSparql(
+  objects: DiagramObjectModel[],
+  points: PointModel[]
+): Promise<void> {
+  const namespace = get(cimNamespace);
+  const diagramIri = get(selectedDiagram);
+  
+  if (!diagramIri) {
+    throw new Error('No diagram selected');
+  }
+  
+  try {
+    // Build and execute queries to save objects and points
+    await sparqlService.insertClonedObjects(
+      diagramIri,
+      objects,
+      points,
+      namespace
+    );
+  } catch (error) {
+    throw error;
   }
 }
