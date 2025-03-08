@@ -112,18 +112,4 @@ export class PointModel {
       parentObject
     );
   }
-  
-  /**
-   * Convert to SPARQL update data
-   * 
-   * @param cimNamespace - CIM namespace
-   * @returns Data for SPARQL update
-   */
-  toSparqlUpdateData(cimNamespace: string): any {
-    return {
-      point: this.iri,
-      xPosition: this.x,
-      yPosition: this.y
-    };
-  }
 }

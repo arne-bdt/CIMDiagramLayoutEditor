@@ -247,7 +247,6 @@ export class DiagramModel {
     // Second pass: add points to objects
     results.results.bindings.forEach(binding => {
       const objectIri = binding.diagramObject.value;
-      const pointIri = binding.point.value;
       const object = objectMap.get(objectIri);
       
       if (object) {

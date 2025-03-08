@@ -17,7 +17,6 @@ import {
   interactionState
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
-import type { InteractionMode, Point2D } from '../models/types';
 import { get } from 'svelte/store';
 import { screenToWorld } from '../utils/geometry';
 

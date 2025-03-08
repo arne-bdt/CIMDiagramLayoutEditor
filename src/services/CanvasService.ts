@@ -1,8 +1,7 @@
 import type { DiagramModel } from '../models/DiagramModel';
 import type { 
   InteractionState, 
-  ViewTransform,
-  InteractionMode
+  ViewTransform
 } from '../models/types';
 import { AppConfig } from '../utils/config';
 import { getDynamicSize } from '../utils/geometry';

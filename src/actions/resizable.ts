@@ -4,7 +4,7 @@
  * @param node - Element to make resizable
  * @param callback - Optional callback to execute on resize
  */
-export function resizable(node: HTMLElement, callback?: () => void) {
+export function resizable(_node: HTMLElement, callback?: () => void) {
     // Handler for window resize
     function handleResize() {
       if (callback) callback();
