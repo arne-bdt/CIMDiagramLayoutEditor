@@ -291,6 +291,115 @@ export class SparqlService {
       throw error;
     }
   }
+
+  /**
+   * Build a query to update the isPolygon property of a diagram object
+   * 
+   * @param objectIri - IRI of the diagram object
+   * @param isPolygon - New value for the isPolygon property
+   * @param cimNamespace - CIM namespace
+   * @returns SPARQL update query
+   */
+  buildUpdatePolygonPropertyQuery(
+    objectIri: string,
+    isPolygon: boolean,
+    cimNamespace: string
+  ): string {
+    return `
+      PREFIX cim: <${cimNamespace}>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+      
+      DELETE {
+        <${objectIri}> cim:DiagramObject.isPolygon ?oldValue .
+      }
+      INSERT {
+        <${objectIri}> cim:DiagramObject.isPolygon "${isPolygon}"^^xsd:boolean .
+      }
+      WHERE {
+        OPTIONAL { <${objectIri}> cim:DiagramObject.isPolygon ?oldValue . }
+      }
+    `;
+  }
+
+  /**
+   * Update the isPolygon property of a diagram object
+   * 
+   * @param objectIri - IRI of the diagram object
+   * @param isPolygon - New value for the isPolygon property
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async updatePolygonProperty(
+    objectIri: string,
+    isPolygon: boolean,
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      const query = this.buildUpdatePolygonPropertyQuery(
+        objectIri,
+        isPolygon,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(query);
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating polygon property:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a point, update sequence numbers, and update polygon property in one transaction
+   * 
+   * @param pointIri - IRI of the point to delete
+   * @param objectIri - IRI of the diagram object
+   * @param isPolygon - New value for the isPolygon property
+   * @param objectPoints - All remaining points of the object with updated sequence numbers
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async deletePointAndUpdatePolygon(
+    pointIri: string,
+    objectIri: string,
+    isPolygon: boolean,
+    objectPoints: Array<{iri: string, sequenceNumber: number}>,
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // First delete the point
+      const deleteQuery = this.buildDeletePointQuery(
+        pointIri,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(deleteQuery);
+      
+      // Then update the polygon property
+      const updatePolygonQuery = this.buildUpdatePolygonPropertyQuery(
+        objectIri,
+        isPolygon,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(updatePolygonQuery);
+      
+      // Finally update all sequence numbers
+      const updateSequenceQuery = this.buildUpdateSequenceNumbersQuery(
+        objectPoints,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(updateSequenceQuery);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting point and updating polygon:', error);
+      throw error;
+    }
+  }
 }
 
 

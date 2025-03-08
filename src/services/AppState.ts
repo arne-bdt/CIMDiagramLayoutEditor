@@ -502,8 +502,19 @@ export async function deletePointFromLine(point: PointModel): Promise<void> {
     setLoading(true);
     updateStatus('Deleting point...');
     
+    // Save the initial polygon state
+    const wasPolygon = object.isPolygon;
+    
+    // Check if we need to update the polygon property
+    const needsPolygonUpdate = wasPolygon && object.points.length <= 3;
+    
     // Remove the point from the object's points array
     object.points.splice(pointIndex, 1);
+    
+    // If we have fewer than 3 points and it was a polygon, remove the polygon property
+    if (needsPolygonUpdate) {
+      object.isPolygon = false;
+    }
     
     // Update sequence numbers for all remaining points
     object.points.forEach((p, index) => {
@@ -529,11 +540,23 @@ export async function deletePointFromLine(point: PointModel): Promise<void> {
     }));
     
     // Persist changes to the database
-    await sparqlService.deletePoint(
-      point.iri,
-      sequenceUpdates,
-      namespace
-    );
+    if (needsPolygonUpdate) {
+      // If we need to update the polygon property, do it in one transaction
+      await sparqlService.deletePointAndUpdatePolygon(
+        point.iri,
+        object.iri,
+        false, // Set isPolygon to false
+        sequenceUpdates,
+        namespace
+      );
+    } else {
+      // Just delete the point
+      await sparqlService.deletePoint(
+        point.iri,
+        sequenceUpdates,
+        namespace
+      );
+    }
     
     updateStatus('Point deleted successfully');
     
@@ -560,6 +583,67 @@ export async function deletePointFromLine(point: PointModel): Promise<void> {
       const diagramIri = get(selectedDiagram);
       if (diagramIri) {
         await diagramService.loadDiagramLayout(diagramIri);
+      }
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Toggle the isPolygon property of a diagram object
+ * 
+ * @param object - The diagram object to update
+ * @param isPolygon - New value for the isPolygon property
+ */
+export async function togglePolygonProperty(
+  object: DiagramObjectModel,
+  isPolygon: boolean
+): Promise<void> {
+  if (!object) return;
+  
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram) return;
+  
+  // Check if we have enough points to form a polygon (minimum 3)
+  if (isPolygon && object.points.length < 3) {
+    updateStatus('Cannot create polygon: at least 3 points are required');
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    updateStatus(`${isPolygon ? 'Creating' : 'Removing'} polygon...`);
+    
+    // Update object property locally
+    object.isPolygon = isPolygon;
+    
+    // Update the diagram in the UI
+    diagramData.set(currentDiagram);
+    
+    // Get the current namespace
+    const namespace = get(cimNamespace);
+    
+    // Persist changes to the database
+    await sparqlService.updatePolygonProperty(
+      object.iri,
+      isPolygon,
+      namespace
+    );
+    
+    updateStatus(`Polygon ${isPolygon ? 'created' : 'removed'} successfully`);
+    
+  } catch (error) {
+    console.error('Error updating polygon property:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // If there was an error, revert the change in the UI
+    if (object) {
+      object.isPolygon = !isPolygon; // Revert to previous state
+      
+      // Update the diagram
+      if (currentDiagram) {
+        diagramData.set(currentDiagram);
       }
     }
   } finally {
