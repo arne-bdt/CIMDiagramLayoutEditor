@@ -1,4 +1,4 @@
-import { CGMESVersion, DrawingPointConfig } from '../models/types';
+import { CGMESVersion, type DrawingPointConfig } from '../models/types';
 
 /**
  * Application configuration settings

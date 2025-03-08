@@ -1,8 +1,8 @@
-import { DiagramModel } from '../models/DiagramModel';
-import { 
+import type { DiagramModel } from '../models/DiagramModel';
+import type { 
   InteractionState, 
-  InteractionMode, 
-  ViewTransform 
+  ViewTransform,
+  InteractionMode
 } from '../models/types';
 import { AppConfig } from '../utils/config';
 import { getDynamicSize } from '../utils/geometry';
@@ -98,7 +98,7 @@ export class CanvasService {
     
     // Render selection rectangle if selecting
     if (
-      interactionState.mode === InteractionMode.SELECTING &&
+      interactionState.mode === 'selecting' &&
       interactionState.dragStart &&
       interactionState.dragEnd
     ) {

@@ -1,5 +1,5 @@
 import { PointModel } from './PointModel';
-import { Bounds, Point2D, SparqlResults } from './types';
+import type { Bounds, Point2D, SparqlResults } from './types';
 
 /**
  * Model class for diagram objects

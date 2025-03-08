@@ -18,6 +18,11 @@
       height: 100%;
     }
   </style>
+  <!-- Preload critical modules to avoid import errors -->
+  <script type="module">
+    // This helps ensure types are properly loaded
+    import './src/models/types.js';
+  </script>
 </head>
 <body>
   <div id="app"></div>

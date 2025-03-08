@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Point2D } from '../models/types';
+        import type { Point2D } from '../models/types';
     
     // Component properties
     export let status: string = 'Ready';

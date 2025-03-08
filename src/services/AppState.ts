@@ -1,13 +1,12 @@
 import { writable, derived } from 'svelte/store';
-import { 
+import type { 
   ViewTransform, 
   InteractionState, 
-  InteractionMode, 
   Point2D, 
-  CGMESVersion,
   PointUpdateData
 } from '../models/types';
-import { DiagramModel } from '../models/DiagramModel';
+import { InteractionMode, CGMESVersion } from '../models/types';
+import type { DiagramModel } from '../models/DiagramModel';
 import { AppConfig } from '../utils/config';
 
 // CGMES state

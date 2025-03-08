@@ -1,5 +1,5 @@
-import { Point2D, Bounds } from './types';
-import { DiagramObjectModel } from './DiagramModel';
+import type { Point2D, Bounds } from './types';
+import type { DiagramObjectModel } from './DiagramModel';
 import { distanceSquared } from '../utils/geometry';
 
 /**

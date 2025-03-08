@@ -11,8 +11,13 @@ export default defineConfig({
     },
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.svelte']
   },
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  },
   build: {
     outDir: 'dist',
+    target: 'esnext',
+    sourcemap: true,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html')
