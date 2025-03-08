@@ -65,7 +65,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 20px;
+    padding: 7px 15px 0 15px;
     box-sizing: border-box;
   }
 
@@ -74,7 +74,7 @@
     position: relative;
     border: 1px solid #ccc;
     overflow: hidden;
-    margin-top: 10px;
+    margin-top: 5px;
     min-height: 300px;
   }
 </style>

@@ -20,15 +20,13 @@
     --selection-rectangle-color: blue;
     
     /* Spacing */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
+    --spacing-xs: 0.1rem;
+    --spacing-sm: 0.25rem;
+    --spacing-md: 0.5rem;
+    --spacing-lg: 0.75rem;
+    --spacing-xl: 1.0rem;
     
     /* Dimensions */
-    --header-height: 60px;
-    --status-bar-height: 30px;
     --border-radius: 4px;
     
     /* Transitions */
