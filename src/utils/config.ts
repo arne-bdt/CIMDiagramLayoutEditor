@@ -19,11 +19,11 @@ export const AppConfig = {
     } as DrawingPointConfig,
     
     colors: {
-      regularPoint: 'var(--point-regular-color)',
-      selectedPoint: 'var(--point-selected-color)',
-      singlePoint: 'var(--point-single-color)',
-      line: 'var(--line-color)',
-      selectionRectangle: 'var(--selection-rectangle-color)'
+      regularPoint: 'green',     // Points in paths/polygons
+      selectedPoint: 'red',      // Selected points
+      singlePoint: 'blue',       // Single points not in paths
+      line: 'black',             // Lines connecting points
+      selectionRectangle: 'blue' // Selection rectangle
     },
     
     selectionThreshold: 6,
