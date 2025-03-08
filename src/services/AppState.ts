@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { 
   ViewTransform, 
   InteractionState, 
@@ -109,27 +109,21 @@ export function togglePointSelection(pointIri: string): void {
 }
 
 export function startDragging(position: Point2D): void {
-  let currentDiagram: DiagramModel | null = null;
-  diagramData.subscribe(diagram => {
-    currentDiagram = diagram;
-  })();
-
+  const currentDiagram = get(diagramData);
   if (!currentDiagram) return;
   
-  // Create a safe copy of the current state
-  let currentInteractionState: InteractionState = { ...initialInteractionState };
-  interactionState.subscribe(state => {
-    currentInteractionState = state;
-  })();
+  const currentState = get(interactionState);
   
   // Store original positions
   const originalPositions = new Map<string, Point2D>();
   
-  currentDiagram.points.forEach((point: PointModel) => {
-    if (currentInteractionState.selectedPoints.has(point.iri)) {
-      originalPositions.set(point.iri, { x: point.x, y: point.y });
-    }
-  });
+  if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
+    currentDiagram.points.forEach((point: PointModel) => {
+      if (currentState.selectedPoints.has(point.iri)) {
+        originalPositions.set(point.iri, { x: point.x, y: point.y });
+      }
+    });
+  }
   
   interactionState.update(state => ({
     ...state,
@@ -141,16 +135,8 @@ export function startDragging(position: Point2D): void {
 }
 
 export function updateDragging(position: Point2D): void {
-  let currentState: InteractionState = { ...initialInteractionState };
-  let currentDiagram: DiagramModel | null = null;
-  
-  interactionState.subscribe(state => {
-    currentState = state;
-  })();
-  
-  diagramData.subscribe(diagram => {
-    currentDiagram = diagram;
-  })();
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
   
   if (!currentState || !currentDiagram || 
       currentState.mode !== InteractionMode.DRAGGING || 
@@ -163,15 +149,17 @@ export function updateDragging(position: Point2D): void {
   const dy = position.y - currentState.dragStart.y;
   
   // Update positions for preview
-  currentDiagram.points.forEach((point: PointModel) => {
-    if (currentState.selectedPoints.has(point.iri)) {
-      const original = currentState.originalPositions.get(point.iri);
-      if (original) {
-        point.x = original.x + dx;
-        point.y = original.y + dy;
+  if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
+    currentDiagram.points.forEach((point: PointModel) => {
+      if (currentState.selectedPoints.has(point.iri)) {
+        const original = currentState.originalPositions.get(point.iri);
+        if (original) {
+          point.x = original.x + dx;
+          point.y = original.y + dy;
+        }
       }
-    }
-  });
+    });
+  }
   
   interactionState.update(state => ({
     ...state,
@@ -183,11 +171,7 @@ export function updateDragging(position: Point2D): void {
 }
 
 export function endDragging(position: Point2D): PointUpdateData | null {
-  let currentState: InteractionState = { ...initialInteractionState };
-  
-  interactionState.subscribe(state => {
-    currentState = state;
-  })();
+  const currentState = get(interactionState);
   
   if (!currentState || 
       currentState.mode !== InteractionMode.DRAGGING || 
@@ -227,31 +211,25 @@ export function endDragging(position: Point2D): PointUpdateData | null {
 }
 
 export function revertDraggedPositions(): void {
-  let currentState: InteractionState = { ...initialInteractionState };
-  let currentDiagram: DiagramModel | null = null;
-  
-  interactionState.subscribe(state => {
-    currentState = state;
-  })();
-  
-  diagramData.subscribe(diagram => {
-    currentDiagram = diagram;
-  })();
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
   
   if (!currentState || !currentDiagram) {
     return;
   }
   
   // Revert positions
-  currentDiagram.points.forEach((point: PointModel) => {
-    if (currentState.selectedPoints.has(point.iri)) {
-      const original = currentState.originalPositions.get(point.iri);
-      if (original) {
-        point.x = original.x;
-        point.y = original.y;
+  if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
+    currentDiagram.points.forEach((point: PointModel) => {
+      if (currentState.selectedPoints.has(point.iri)) {
+        const original = currentState.originalPositions.get(point.iri);
+        if (original) {
+          point.x = original.x;
+          point.y = original.y;
+        }
       }
-    }
-  });
+    });
+  }
   
   // Force diagram update
   diagramData.set(currentDiagram);
@@ -274,16 +252,8 @@ export function updateSelecting(position: Point2D): void {
 }
 
 export function completeSelecting(): void {
-  let currentState: InteractionState = { ...initialInteractionState };
-  let currentDiagram: DiagramModel | null = null;
-  
-  interactionState.subscribe(state => {
-    currentState = state;
-  })();
-  
-  diagramData.subscribe(diagram => {
-    currentDiagram = diagram;
-  })();
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
   
   if (!currentState || !currentDiagram || 
       currentState.mode !== InteractionMode.SELECTING || 
@@ -310,11 +280,14 @@ export function completeSelecting(): void {
   
   // Find points in selection rectangle
   const newSelectedPoints = new Set<string>(currentState.selectedPoints);
-  currentDiagram.points.forEach((point: PointModel) => {
-    if (point.x >= startX && point.x <= endX && point.y >= startY && point.y <= endY) {
-      newSelectedPoints.add(point.iri);
-    }
-  });
+  
+  if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
+    currentDiagram.points.forEach((point: PointModel) => {
+      if (point.x >= startX && point.x <= endX && point.y >= startY && point.y <= endY) {
+        newSelectedPoints.add(point.iri);
+      }
+    });
+  }
   
   // Update state
   interactionState.update(state => ({
@@ -335,20 +308,7 @@ export function startPanning(position: Point2D): void {
 }
 
 export function updatePanning(position: Point2D): void {
-  let currentState: InteractionState = { ...initialInteractionState };
-  let currentTransform: ViewTransform = {
-    scale: AppConfig.view.initialScale,
-    offsetX: AppConfig.view.initialOffsetX,
-    offsetY: AppConfig.view.initialOffsetY
-  };
-  
-  interactionState.subscribe(state => {
-    currentState = state;
-  })();
-  
-  viewTransform.subscribe(transform => {
-    currentTransform = transform;
-  })();
+  const currentState = get(interactionState);
   
   if (!currentState || 
       currentState.mode !== InteractionMode.PANNING || 
@@ -383,15 +343,7 @@ export function endPanning(): void {
 }
 
 export function zoom(center: Point2D, delta: number): void {
-  let currentTransform: ViewTransform = {
-    scale: AppConfig.view.initialScale,
-    offsetX: AppConfig.view.initialOffsetX,
-    offsetY: AppConfig.view.initialOffsetY
-  };
-  
-  viewTransform.subscribe(transform => {
-    currentTransform = transform;
-  })();
+  const currentTransform = get(viewTransform);
   
   // Calculate zoom factor
   const zoomFactor = delta < 0 ? AppConfig.canvas.zoomFactor : 1 / AppConfig.canvas.zoomFactor;
