@@ -14,11 +14,13 @@ import {
   clearSelection,
   diagramData,
   viewTransform,
-  interactionState
+  interactionState,
+  addNewPointToLine
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
 import { screenToWorld } from '../utils/geometry';
+import { findClosestLineSegment } from '../utils/geometry';
 
 /**
  * Svelte action for canvas interactions
@@ -27,6 +29,26 @@ import { screenToWorld } from '../utils/geometry';
  * @param canvas - Canvas element
  */
 export function canvasInteraction(canvas: HTMLCanvasElement) {
+  // Add double-click handler for inserting new points on lines
+  function handleDoubleClick(e: MouseEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    
+    const currentTransform = get(viewTransform);
+    const worldPos = screenToWorld(screenX, screenY, currentTransform);
+    
+    const diagram = get(diagramData);
+    if (!diagram) return;
+    
+    // Find closest line segment
+    const result = findClosestLineSegment(worldPos, diagram, AppConfig.canvas.selectionThreshold * 2);
+    
+    if (result) {
+      addNewPointToLine(result.object, result.position, result.index);
+    }
+  }
+
   // Event handlers
   function handleMouseDown(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
@@ -138,6 +160,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   canvas.addEventListener('mousemove', handleMouseMove);
   canvas.addEventListener('mouseup', handleMouseUp);
   canvas.addEventListener('wheel', handleWheel);
+  canvas.addEventListener('dblclick', handleDoubleClick);
   
   return {
     destroy() {
@@ -146,6 +169,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('wheel', handleWheel);
+      canvas.removeEventListener('dblclick', handleDoubleClick);
     }
   };
 }

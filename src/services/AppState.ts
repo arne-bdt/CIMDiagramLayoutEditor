@@ -7,8 +7,11 @@ import type {
 } from '../models/types';
 import { InteractionMode, CGMESVersion } from '../models/types';
 import type { DiagramModel } from '../models/DiagramModel';
-import type { PointModel } from '../models/PointModel';
+import { DiagramObjectModel } from '../models/DiagramModel';
+import { PointModel } from '../models/PointModel';
 import { AppConfig } from '../utils/config';
+import { sparqlService } from './SparqlService';
+import { v4 as uuidv4 } from 'uuid';
 
 // CGMES state
 export const cgmesVersion = writable<CGMESVersion>(CGMESVersion.V3_0);
@@ -359,4 +362,110 @@ export function zoom(center: Point2D, delta: number): void {
     offsetX: newOffsetX,
     offsetY: newOffsetY
   });
+}
+
+/**
+ * Add a new point to a line in the diagram
+ * 
+ * @param object - Diagram object to add the point to
+ * @param position - Position of the new point
+ * @param insertIndex - Index where to insert the point
+ */
+export async function addNewPointToLine(
+  object: DiagramObjectModel,
+  position: Point2D,
+  insertIndex: number
+): Promise<void> {
+  if (!object || !position || insertIndex === undefined) return;
+  
+  const currentDiagram = get(diagramData);
+  if (!currentDiagram) return;
+  
+  // Generate a new unique IRI for the point
+  // In a real application, this would be a proper URI following CGMES conventions
+  const newPointIri = `http://tempuri.org/point/${uuidv4()}`;
+
+  try {
+    setLoading(true);
+    updateStatus('Adding new point...');
+    
+    
+    
+    // Create new point
+    const newPoint = new PointModel(
+      newPointIri,
+      position.x,
+      position.y,
+      insertIndex, // Initial sequence number at insert position
+      object
+    );
+    
+    // Insert the point into the object's points array
+    object.points.splice(insertIndex, 0, newPoint);
+    
+    // Update sequence numbers for all points in the object
+    object.points.forEach((point, index) => {
+      point.sequenceNumber = index;
+    });
+    
+    // Add point to the diagram's points collection
+    currentDiagram.points.push(newPoint);
+    
+    // Update the diagram in the UI
+    diagramData.set(currentDiagram);
+    
+    // Get the current namespace
+    const namespace = get(cimNamespace);
+    
+    // Create data for SPARQL update
+    const pointUpdateData = {
+      iri: newPointIri,
+      objectIri: object.iri,
+      x: position.x,
+      y: position.y,
+      sequenceNumber: insertIndex
+    };
+    
+    // Prepare sequence number updates for all points in the object
+    const sequenceUpdates = object.points.map(point => ({
+      iri: point.iri,
+      sequenceNumber: point.sequenceNumber
+    }));
+    
+    // Persist changes to the database
+    await sparqlService.insertNewPoint(
+      pointUpdateData,
+      sequenceUpdates,
+      namespace
+    );
+    
+    updateStatus('New point added');
+    
+    // Select the newly added point
+    clearSelection();
+    togglePointSelection(newPointIri);
+    
+  } catch (error) {
+    console.error('Error adding new point:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // If there was an error, revert the change in the UI
+    if (currentDiagram && object) {
+      // Remove the new point
+      object.points = object.points.filter(p => p.iri !== newPointIri);
+      
+      // Reset sequence numbers
+      object.points.forEach((point, index) => {
+        point.sequenceNumber = index;
+      });
+      
+      // Remove from diagram points collection
+      currentDiagram.points = currentDiagram.points.filter(p => p.iri !== newPointIri);
+      
+      // Update the diagram
+      diagramData.set(currentDiagram);
+    }
+  } finally {
+    setLoading(false);
+  }
 }

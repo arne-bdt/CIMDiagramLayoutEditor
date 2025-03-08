@@ -4,6 +4,7 @@ import type {
   Bounds, 
   DrawingPointConfig 
 } from '../models/types';
+import type { DiagramModel, DiagramObjectModel } from '../models/DiagramModel';
 
 /**
  * Calculate the squared distance between two points
@@ -112,4 +113,111 @@ export function calculateFitScale(
   const scaleY = canvasHeight / height;
   
   return Math.min(scaleX, scaleY, maxScale);
+}
+
+/**
+ * Calculate the squared distance from a point to a line segment
+ * 
+ * @param point - Point coordinates
+ * @param lineStart - Line segment start coordinates
+ * @param lineEnd - Line segment end coordinates
+ * @returns Distance squared and projected point on the line
+ */
+export function pointToLineDistanceSquared(
+  point: Point2D,
+  lineStart: Point2D,
+  lineEnd: Point2D
+): { distanceSquared: number; projectedPoint: Point2D } {
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
+  
+  // Line segment is a point
+  if (dx === 0 && dy === 0) {
+    return {
+      distanceSquared: distanceSquared(point.x, point.y, lineStart.x, lineStart.y),
+      projectedPoint: { x: lineStart.x, y: lineStart.y }
+    };
+  }
+  
+  // Calculate projection of point onto line
+  const lengthSquared = dx * dx + dy * dy;
+  const t = Math.max(0, Math.min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared));
+  
+  const projectedPoint = {
+    x: lineStart.x + t * dx,
+    y: lineStart.y + t * dy
+  };
+  
+  return {
+    distanceSquared: distanceSquared(point.x, point.y, projectedPoint.x, projectedPoint.y),
+    projectedPoint
+  };
+}
+
+/**
+ * Find the closest line segment to a point in the diagram
+ * 
+ * @param point - Point coordinates to check against
+ * @param diagram - Diagram model
+ * @param maxDistance - Maximum distance to consider
+ * @returns Object with line segment information or null if none found
+ */
+export function findClosestLineSegment(
+  point: Point2D,
+  diagram: DiagramModel,
+  maxDistance: number
+): { 
+  object: DiagramObjectModel; 
+  index: number;
+  position: Point2D;
+  distance: number; 
+} | null {
+  let closestDistance = maxDistance * maxDistance;
+  let result = null;
+  
+  // Check all objects with at least 2 points
+  for (const object of diagram.objects) {
+    if (object.points.length < 2) continue;
+    
+    // Check each line segment
+    for (let i = 0; i < object.points.length - 1; i++) {
+      const p1 = { x: object.points[i].x, y: object.points[i].y };
+      const p2 = { x: object.points[i+1].x, y: object.points[i+1].y };
+      
+      const { distanceSquared: dist, projectedPoint } = pointToLineDistanceSquared(point, p1, p2);
+      
+      if (dist < closestDistance) {
+        closestDistance = dist;
+        result = {
+          object,
+          index: i + 1, // Insert position (after p1)
+          position: projectedPoint,
+          distance: Math.sqrt(dist)
+        };
+      }
+    }
+    
+    // Check last-to-first segment if polygon
+    if (object.isPolygon && object.points.length > 2) {
+      const p1 = { 
+        x: object.points[object.points.length - 1].x, 
+        y: object.points[object.points.length - 1].y 
+      };
+      const p2 = { x: object.points[0].x, y: object.points[0].y };
+      
+      const { distanceSquared: dist, projectedPoint } = pointToLineDistanceSquared(point, p1, p2);
+      
+      if (dist < closestDistance) {
+        closestDistance = dist;
+        result = {
+          object,
+          index: 0, // Insert at beginning (for visual continuity in polygon)
+          position: projectedPoint,
+          distance: Math.sqrt(dist)
+        };
+      }
+    }
+  }
+  
+  return result;
 }

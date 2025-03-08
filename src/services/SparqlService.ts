@@ -110,7 +110,129 @@ export class SparqlService {
     
     return response;
   }
+
+  /**
+   * Build an insert query for a new diagram point
+   * 
+   * @param pointIri - IRI of the new point
+   * @param objectIri - IRI of the diagram object
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   * @param sequenceNumber - Sequence number
+   * @param cimNamespace - CIM namespace
+   * @returns SPARQL insert query
+   */
+  buildInsertPointQuery(
+    pointIri: string,
+    objectIri: string,
+    x: number,
+    y: number,
+    sequenceNumber: number,
+    cimNamespace: string
+  ): string {
+    return `
+      PREFIX cim: <${cimNamespace}>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+      
+      INSERT DATA {
+        <${pointIri}> rdf:type cim:DiagramObjectPoint .
+        <${pointIri}> cim:DiagramObjectPoint.DiagramObject <${objectIri}> .
+        <${pointIri}> cim:DiagramObjectPoint.xPosition "${x}"^^xsd:float .
+        <${pointIri}> cim:DiagramObjectPoint.yPosition "${y}"^^xsd:float .
+        <${pointIri}> cim:DiagramObjectPoint.sequenceNumber "${sequenceNumber}"^^xsd:integer .
+      }
+    `;
+  }
+
+  /**
+   * Build an update query to update sequence numbers for points
+   * 
+   * @param points - Array of {iri, sequenceNumber} objects
+   * @param cimNamespace - CIM namespace
+   * @returns SPARQL update query
+   */
+  buildUpdateSequenceNumbersQuery(
+    points: Array<{iri: string, sequenceNumber: number}>,
+    cimNamespace: string
+  ): string {
+    let deleteClause = 'DELETE {';
+    let insertClause = 'INSERT {';
+    let whereClause = 'WHERE {';
+    
+    points.forEach((point, index) => {
+      deleteClause += `
+        <${point.iri}> cim:DiagramObjectPoint.sequenceNumber ?oldSeq${index} .`;
+      
+      insertClause += `
+        <${point.iri}> cim:DiagramObjectPoint.sequenceNumber "${point.sequenceNumber}"^^xsd:integer .`;
+      
+      whereClause += `
+        OPTIONAL { <${point.iri}> cim:DiagramObjectPoint.sequenceNumber ?oldSeq${index} . }`;
+    });
+    
+    deleteClause += '\n}';
+    insertClause += '\n}';
+    whereClause += '\n}';
+    
+    return `
+      PREFIX cim: <${cimNamespace}>
+      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+      
+      ${deleteClause}
+      ${insertClause}
+      ${whereClause}
+    `;
+  }
+
+  /**
+   * Insert a new point and update sequence numbers
+   * 
+   * @param newPoint - New point data
+   * @param objectPoints - All points of the object with updated sequence numbers
+   * @returns Success status
+   */
+  async insertNewPoint(
+    newPoint: {
+      iri: string,
+      objectIri: string,
+      x: number,
+      y: number,
+      sequenceNumber: number
+    },
+    objectPoints: Array<{iri: string, sequenceNumber: number}>,
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // First insert the new point
+      const insertQuery = this.buildInsertPointQuery(
+        newPoint.iri,
+        newPoint.objectIri,
+        newPoint.x,
+        newPoint.y,
+        newPoint.sequenceNumber,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(insertQuery);
+      
+      // Then update all sequence numbers
+      const updateQuery = this.buildUpdateSequenceNumbersQuery(
+        objectPoints,
+        cimNamespace
+      );
+      
+      await this.executeUpdate(updateQuery);
+      
+      return true;
+    } catch (error) {
+      console.error('Error inserting new point:', error);
+      throw error;
+    }
+  }
 }
+
+
 
 // Create singleton instance for use throughout the application
 export const sparqlService = new SparqlService('');
