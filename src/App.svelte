@@ -18,13 +18,21 @@
   // Handle load diagram profiles
   const handleLoadDiagrams = async (event: CustomEvent) => {
     const endpoint = event.detail.endpoint;
-    await diagramService.loadDiagramProfiles(endpoint);
+    try {
+      await diagramService.loadDiagramProfiles(endpoint);
+    } catch (error) {
+      console.error('Error loading diagrams:', error);
+    }
   };
 
   // Handle render diagram
   const handleRenderDiagram = async (event: CustomEvent) => {
     const diagramIri = event.detail.diagramIri;
-    await diagramService.loadDiagramLayout(diagramIri);
+    try {
+      await diagramService.loadDiagramLayout(diagramIri);
+    } catch (error) {
+      console.error('Error rendering diagram:', error);
+    }
   };
 </script>
 
