@@ -493,8 +493,9 @@ export async function deletePointFromLine(point: PointModel): Promise<void> {
     // Check if the point is first or last in its object
     const pointIndex = object.points.findIndex(p => p.iri === point.iri);
     
-    if (pointIndex === 0 || pointIndex === object.points.length - 1) {
-      updateStatus('Cannot delete first or last point of a line or shape');
+    // For non-polygon objects (lines), prevent deletion of first and last points
+    if (!object.isPolygon && (pointIndex === 0 || pointIndex === object.points.length - 1)) {
+      updateStatus('Cannot delete first or last point of a line');
       return;
     }
     
