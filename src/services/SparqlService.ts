@@ -537,27 +537,21 @@ export class SparqlService {
               <${newPointIri}> ?p ?o .
             `;
             
-            // Add special triples with new references
-            if (binding.obj && objectMapping.has(binding.obj.value)) {
-              pointCloneQuery += `
+            pointCloneQuery += `
                 <${newPointIri}> cim:DiagramObjectPoint.DiagramObject <${objectMapping.get(binding.obj.value)}> .
               `;
-            }
+
+            const newX = parseFloat(binding.x.value) + offsetX;
+            const newY = parseFloat(binding.y.value) + offsetY;
+            
+            pointCloneQuery += `
+              <${newPointIri}> cim:DiagramObjectPoint.xPosition "${newX}"^^xsd:float .
+              <${newPointIri}> cim:DiagramObjectPoint.yPosition "${newY}"^^xsd:float .
+            `;
             
             if (binding.gluePoint && gluePointMapping.has(binding.gluePoint.value)) {
               pointCloneQuery += `
                 <${newPointIri}> cim:DiagramObjectPoint.DiagramObjectGluePoint <${gluePointMapping.get(binding.gluePoint.value)}> .
-              `;
-            }
-            
-            // Add adjusted position
-            if (binding.x && binding.y) {
-              const newX = parseFloat(binding.x.value) + offsetX;
-              const newY = parseFloat(binding.y.value) + offsetY;
-              
-              pointCloneQuery += `
-                <${newPointIri}> cim:DiagramObjectPoint.xPosition "${newX}"^^xsd:float .
-                <${newPointIri}> cim:DiagramObjectPoint.yPosition "${newY}"^^xsd:float .
               `;
             }
           }
