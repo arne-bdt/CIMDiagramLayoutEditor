@@ -1075,11 +1075,17 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
   
   // Find all parent DiagramObjects of selected points
   const objectIris = new Set<string>();
+  const pointIris = new Set<string>();
   
   currentState.selectedPoints.forEach(pointIri => {
     const point = currentDiagram.points.find(p => p.iri === pointIri);
     if (point && point.parentObject) {
       objectIris.add(point.parentObject.iri);
+      
+      // Collect all points of this object for removal
+      currentDiagram.points
+        .filter(p => p.parentObject && p.parentObject.iri === point.parentObject.iri)
+        .forEach(p => pointIris.add(p.iri));
     }
   });
   
@@ -1091,9 +1097,8 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
   // Select all points of these objects
   selectAllPointsOfObjects(objectIris);
 
-  //wait for rendering of selected objects
-  await new Promise(r => setTimeout
-  (r, 200));
+  // Wait for rendering of selected objects
+  await new Promise(r => setTimeout(r, 200));
   
   // Show confirmation dialog
   const confirmDelete = window.confirm(`Are you sure you want to delete ${objectIris.size} diagram object(s)?`);
@@ -1108,6 +1113,9 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
   updateStatus(`Deleting ${objectIris.size} diagram objects...`);
   
   try {
+    // Preserve current view transform
+    const currentViewTransform = get(viewTransform);
+    
     // Get the current namespace
     const namespace = get(cimNamespace);
     
@@ -1117,20 +1125,47 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
       namespace
     );
     
-    // Reload the diagram to reflect the changes
+    // Instead of reloading the entire diagram, just remove the deleted objects
+    // from the current diagram model
+    if (currentDiagram) {
+      // Remove all deleted points
+      currentDiagram.points = currentDiagram.points.filter(p => 
+        !pointIris.has(p.iri)
+      );
+      
+      // Remove all deleted objects
+      currentDiagram.objects = currentDiagram.objects.filter(obj => 
+        !objectIris.has(obj.iri)
+      );
+      
+      // Update diagram data to trigger rerender
+      diagramData.set(currentDiagram);
+      
+      updateStatus(`Deleted ${objectIris.size} diagram objects`);
+      
+      // Clear selection since the points were deleted
+      clearSelection();
+    } else {
+      // Fallback: Reload the diagram if we don't have a current model
+      const diagramIri = get(selectedDiagram);
+      if (diagramIri) {
+        await diagramService.loadDiagramLayout(diagramIri);
+        
+        // Restore viewport
+        setTimeout(() => {
+          viewTransform.set(currentViewTransform);
+        }, 100);
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting diagram objects:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // Reload the diagram in case of error to ensure consistency
     const diagramIri = get(selectedDiagram);
     if (diagramIri) {
       await diagramService.loadDiagramLayout(diagramIri);
     }
-    
-    updateStatus(`Deleted ${objectIris.size} diagram objects`);
-    
-    // Clear selection since the points were deleted
-    clearSelection();
-    
-  } catch (error) {
-    console.error('Error deleting diagram objects:', error);
-    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     setLoading(false);
   }
