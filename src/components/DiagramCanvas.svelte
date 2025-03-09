@@ -6,7 +6,12 @@
     interactionState,
     positionUpdateEvent,
     hoveredPoint,
-    showPointTooltip
+    showPointTooltip,
+    isTooltipPinned,
+    setTooltipPinned,
+    hideTooltip,
+    setTooltipHovered,
+    hideTooltipIfNotPinned
   } from '../services/AppState';
   import { canvasService } from '../services/CanvasService';
   import { diagramService } from '../services/DiagramService';
@@ -25,7 +30,7 @@
   // For polygon checkbox
   let selectedPoint: PointModel | null = null;
   let showPolygonCheckbox = false;
-  let checkboxPosition: Point2D = { x: 0, y: 0 }; 
+  let checkboxPosition: Point2D = { x: 0, y: 0 };
   
   // Watch for selected points changes
   $: {
@@ -84,7 +89,28 @@
   
   // Handle closing the tooltip
   function handleTooltipClose() {
-    showPointTooltip.set(false);
+    hideTooltip();
+  }
+  
+  // Handle tooltip pin state change
+  function handleTooltipPin(event: CustomEvent) {
+    setTooltipPinned(event.detail);
+  }
+
+  // Handle tooltip mouse events
+  function handleTooltipEnter() {
+    // Tell the AppState when the mouse enters the tooltip
+    setTooltipHovered(true);
+  }
+  
+  function handleTooltipLeave() {
+    // Only tell the AppState when the mouse leaves if not pinned
+    setTooltipHovered(false);
+    
+    // Hide the tooltip after a delay if it's not pinned
+    if (!$isTooltipPinned) {
+      hideTooltipIfNotPinned();
+    }
   }
   
   onMount(() => {
@@ -121,6 +147,9 @@
     viewTransform={$viewTransform}
     visible={$showPointTooltip}
     on:close={handleTooltipClose}
+    on:pin={handleTooltipPin}
+    on:enter={handleTooltipEnter}
+    on:leave={handleTooltipLeave}
   />
 </div>
 

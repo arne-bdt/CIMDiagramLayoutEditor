@@ -1079,9 +1079,43 @@ export async function rotateSelectedObjects(degrees: number): Promise<void> {
 // Store for tracking the hovered point
 export const hoveredPoint = writable<PointModel | null>(null);
 export const showPointTooltip = writable<boolean>(false);
+export const isTooltipPinned = writable<boolean>(false);
+export const isTooltipHovered = writable<boolean>(false);
 
-// Function to set the hovered point
-export function setHoveredPoint(point: PointModel | null): void {
+// Function to set the hovered point and show tooltip
+export function showTooltipForPoint(point: PointModel): void {
   hoveredPoint.set(point);
-  showPointTooltip.set(point !== null);
+  showPointTooltip.set(true);
+}
+
+// Function to hide the tooltip if it's not pinned or hovered
+export function hideTooltipIfNotPinned(): void {
+  // Only hide if neither pinned nor hovered
+  if (!get(isTooltipPinned) && !get(isTooltipHovered)) {
+    // Add a slight delay to allow for mouse movement to the tooltip
+    setTimeout(() => {
+      // Check again to see if it's been pinned or hovered during the delay
+      if (!get(isTooltipPinned) && !get(isTooltipHovered)) {
+        showPointTooltip.set(false);
+      }
+    }, 300);
+  }
+}
+
+// Function to explicitly hide the tooltip regardless of pin state
+export function hideTooltip(): void {
+  hoveredPoint.set(null);
+  showPointTooltip.set(false);
+  isTooltipPinned.set(false);
+  isTooltipHovered.set(false);
+}
+
+// Function to toggle the pinned state of the tooltip
+export function setTooltipPinned(pinned: boolean): void {
+  isTooltipPinned.set(pinned);
+}
+
+// Function to toggle the hovered state of the tooltip
+export function setTooltipHovered(hovered: boolean): void {
+  isTooltipHovered.set(hovered);
 }
