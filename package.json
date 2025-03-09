@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+"scripts": {
+    "dev": "node scripts/build-docs.js && vite",
+    "build": "node scripts/build-docs.js && vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build:docs": "node scripts/build-docs.js"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
@@ -27,6 +28,7 @@
     "vitest-canvas-mock": "^0.3.3"
   },
   "dependencies": {
+    "@asciidoctor/core": "^2.2.6",
     "svelte-simple-modal": "^1.6.1",
     "uuid": "^9.0.0"
   }

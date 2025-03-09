@@ -4,12 +4,16 @@
   import DiagramCanvas from './components/DiagramCanvas.svelte';
   import StatusBar from './components/StatusBar.svelte';
   import LoadingIndicator from './components/LoadingIndicator.svelte';
+  import Help from './components/Help.svelte';
   import { isLoading, statusText, coordinates } from './services/AppState';
   import { onMount } from 'svelte';
   import { diagramService } from './services/DiagramService';
 
   // Canvas reference
   let canvasContainer: HTMLDivElement;
+  
+  // Help component reference
+  let helpComponent: Help;
   
   onMount(() => {
     console.log('CGMES DiagramLayout Editor mounted');
@@ -34,10 +38,17 @@
       console.error('Error rendering diagram:', error);
     }
   };
+  
+  // Show help
+  function toggleHelp() {
+    if (helpComponent) {
+      helpComponent.toggle();
+    }
+  }
 </script>
 
 <main>
-  <Header />
+  <Header on:showHelp={toggleHelp} />
   
   <ConfigPanel 
     on:loadDiagrams={handleLoadDiagrams}
@@ -52,6 +63,9 @@
   </div>
   
   <StatusBar status={$statusText} coordinates={$coordinates} />
+  
+  <!-- Help component -->
+  <Help bind:this={helpComponent} />
 </main>
 
 <style>

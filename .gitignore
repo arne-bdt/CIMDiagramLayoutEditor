@@ -1,3 +1,4 @@
 dist/**
 node_modules/**
+public/docs/user-guide.html
 yarn.lock

@@ -31,10 +31,12 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['svelte']
+    include: ['svelte', 'asciidoctor']
   },
   server: {
     host: true,
     port: 3000
-  }
+  },
+  // Configure the public directory for static assets including docs
+  publicDir: 'public'
 });

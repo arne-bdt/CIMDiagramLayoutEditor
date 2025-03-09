@@ -1,0 +1,186 @@
+= CGMES DiagramLayout Editor: User Guide
+:toc: left
+:toclevels: 3
+:icons: font
+:sectlinks:
+:experimental:
+
+== Introduction
+
+The CGMES DiagramLayout Editor is a specialized web application designed for viewing and editing power system diagram layouts based on the Common Grid Model Exchange Standard (CGMES). This guide explains how to use the application effectively, including all available interactions and keyboard shortcuts.
+
+== Getting Started
+
+=== Connection Setup
+
+. Enter a valid SPARQL endpoint URL in the "SPARQL Endpoint URL" field
+. Select the appropriate CGMES version (2.4.15 or 3.0)
+. Click "Load diagram profiles" to query available diagrams
+. Select a diagram from the dropdown menu
+. Click "Render diagram" to display the diagram on the canvas
+
+[TIP]
+The application remembers your last endpoint URL for convenience.
+
+=== Interface Overview
+
+The application interface consists of these main sections:
+
+* *Header*: Title of the application
+* *Configuration Panel*: SPARQL endpoint, CGMES version, diagram selection
+* *Grid Controls*: Toggle grid visibility, snap-to-grid, and adjust grid size
+* *Canvas*: Interactive diagram rendering area
+* *Status Bar*: Current status and cursor coordinates
+
+== Canvas Interactions
+
+=== Basic Navigation
+
+[cols="1,3"]
+|===
+|Action |Description
+
+|*Pan*
+|Click and drag on empty canvas space (without pressing Ctrl)
+
+|*Zoom In/Out*
+|Use mouse wheel up/down to zoom in/out at the cursor position
+|===
+
+=== Working with Points
+
+[cols="1,3"]
+|===
+|Action |Description
+
+|*Select a Point*
+|Hold kbd:[Ctrl] and click on a point
+
+|*Select Multiple Points*
+|Hold kbd:[Ctrl] and drag to create a selection rectangle
+
+|*Move Points*
+|Select one or more points, then click and drag any selected point
+
+|*View Point Details*
+|Hover over a point to see its tooltip with detailed information
+
+|*Pin Point Details*
+|Click the pin icon in the tooltip to keep it visible while working
+
+|*Toggle Polygon*
+|Select a point and use the "Polygon" checkbox that appears
+|===
+
+=== Editing Operations
+
+[cols="1,3"]
+|===
+|Action |Description
+
+|*Add a Point*
+|Double-click on a line segment to add a new point at that position
+
+|*Delete a Point*
+|Double-click on an existing point to remove it (not available for first/last points of a line)
+
+|*Copy Objects*
+|Select points and press kbd:[Ctrl+C] to copy their parent objects
+
+|*Paste Objects*
+|Press kbd:[Ctrl+V] to paste previously copied objects at the cursor position
+
+|*Delete Objects*
+|Select points and press kbd:[Delete] to remove their parent objects (with confirmation)
+
+|*Rotate Clockwise*
+|Select points and press kbd:[Ctrl+Right Arrow] to rotate 90° clockwise
+
+|*Rotate Counter-clockwise*
+|Select points and press kbd:[Ctrl+Left Arrow] to rotate 90° counter-clockwise
+|===
+
+== Grid Functions
+
+[cols="1,3"]
+|===
+|Option |Description
+
+|*Show Grid*
+|Toggle to display a grid on the canvas background
+
+|*Snap to Grid*
+|Toggle to automatically align points to the nearest grid lines when moving
+
+|*Grid Size*
+|Adjust the spacing between grid lines
+|===
+
+== Keyboard Shortcuts Summary
+
+[cols="1,2"]
+|===
+|Shortcut |Function
+
+|kbd:[Ctrl] + Click
+|Select a point
+
+|kbd:[Ctrl] + Drag
+|Select multiple points within a rectangle
+
+|kbd:[Ctrl+C]
+|Copy selected diagram objects
+
+|kbd:[Ctrl+V]
+|Paste copied objects at cursor position
+
+|kbd:[Delete]
+|Delete selected diagram objects
+
+|kbd:[Ctrl+Right Arrow]
+|Rotate selected objects 90° clockwise
+
+|kbd:[Ctrl+Left Arrow]
+|Rotate selected objects 90° counter-clockwise
+
+|kbd:[Esc]
+|Close active tooltip
+|===
+
+== Point Tooltips
+
+When hovering over a point, a tooltip displays detailed information about the point and its parent diagram object:
+
+* *DiagramObject*: mRID, name, offset, rotation
+* *DiagramObjectPoint*: mRID, name, sequence number, x/y/z coordinates
+
+The tooltip provides several interaction options:
+
+* Pin/unpin the tooltip to keep it visible
+* Copy values to clipboard by selecting the text
+* Close the tooltip with the X button or kbd:[Esc] key
+
+== Technical Details
+
+=== SPARQL Integration
+
+The editor communicates with the SPARQL endpoint in these ways:
+
+* *Loading diagrams*: Queries for all available diagrams
+* *Rendering a diagram*: Retrieves all objects and points for the selected diagram
+* *Updating positions*: Sends updates when points are moved
+* *Adding/removing points*: Creates or deletes point data
+* *Toggling polygon property*: Updates object properties
+
+=== Coordinates and Units
+
+* All coordinates in the system are in CGMES world units
+* The status bar displays the current cursor position in these units
+* Grid settings and measurements use the same coordinate system
+
+== Best Practices
+
+* *Saving your work*: Changes are written to the SPARQL endpoint immediately after editing
+* *Complex diagrams*: Use selection rectangle (Ctrl+drag) to select multiple points in dense areas
+* *Precision placement*: Enable "Snap to Grid" and adjust grid size for accurate positioning
+* *Viewing details*: Pin tooltips when you need to refer to point information while working
