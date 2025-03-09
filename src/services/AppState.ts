@@ -874,6 +874,9 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
       throw new Error('No diagram selected');
     }
     
+    // Preserve current view transform state
+    const currentViewTransform = get(viewTransform);
+    
     // Execute SPARQL query to create copies with adjusted positions
     const newObjPointIris = await sparqlService.cloneObjectsWithOffset(
       diagramIri,
@@ -883,24 +886,178 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
       namespace
     );
     
-    // Reload the diagram to show the newly added objects
-    await diagramService.loadDiagramLayout(diagramIri);
-    
-    // Select the newly created points
-    if (newObjPointIris && newObjPointIris.pointIris) {
-      interactionState.update(state => ({
-        ...state,
-        selectedPoints: new Set(newObjPointIris.pointIris)
-      }));
+    // Instead of reloading the whole diagram, just add the new objects
+    // directly to the current diagram model
+    const currentDiagram = get(diagramData);
+    if (currentDiagram) {
+      try {
+        // Fetch only the newly created objects and points
+        const newObjectsQuery = buildNewObjectsQuery(
+          newObjPointIris.objectIris, 
+          newObjPointIris.pointIris,
+          namespace
+        );
+        
+        const newObjectsResult = await sparqlService.executeQuery(newObjectsQuery);
+        
+        // Parse the new objects
+        const newObjectsByIri = new Map();
+        const newObjects = [];
+        
+        // First, create all the new DiagramObjects
+        for (const binding of newObjectsResult.results.bindings) {
+          const objectIri = binding.diagramObject.value;
+          
+          if (!newObjectsByIri.has(objectIri)) {
+            const object = DiagramObjectModel.fromSparqlBinding(binding);
+            newObjectsByIri.set(objectIri, object);
+            newObjects.push(object);
+            currentDiagram.objects.push(object);
+          }
+        }
+        
+        // Then, create and add all the points
+        for (const binding of newObjectsResult.results.bindings) {
+          const objectIri = binding.diagramObject.value;
+          const object = newObjectsByIri.get(objectIri);
+          
+          if (object) {
+            const point = PointModel.fromSparqlBinding(binding, object);
+            object.addPoint(point);
+            currentDiagram.points.push(point);
+          }
+        }
+        
+        // Sort objects by drawing order
+        currentDiagram.sortObjects();
+        
+        // Update diagram data to trigger rerender
+        diagramData.set(currentDiagram);
+        
+        // Select the newly created points
+        if (newObjPointIris && newObjPointIris.pointIris) {
+          interactionState.update(state => ({
+            ...state,
+            selectedPoints: new Set(newObjPointIris.pointIris)
+          }));
+        }
+        
+        updateStatus(`Pasted ${objectIris.size} diagram objects`);
+      } catch (error) {
+        console.error('Error fetching new objects:', error);
+        // Fallback to reloading the full diagram if incremental update fails
+        await diagramService.loadDiagramLayout(diagramIri);
+        
+        // Attempt to restore view transform
+        setTimeout(() => {
+          viewTransform.set(currentViewTransform);
+        }, 100);
+      }
+    } else {
+      // If we don't have a current diagram, load the full diagram
+      await diagramService.loadDiagramLayout(diagramIri);
     }
     
-    updateStatus(`Pasted ${objectIris.size} diagram objects`);
   } catch (error) {
     console.error('Error pasting diagram objects:', error);
     updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     setLoading(false);
   }
+}
+
+/**
+ * Build query to fetch only the newly created objects and points
+ */
+function buildNewObjectsQuery(objectIris: string[], pointIris: string[], cimNamespace: string): string {
+  const objectValues = objectIris.map(iri => `<${iri}>`).join(' ');
+  const pointValues = pointIris.map(iri => `<${iri}>`).join(' ');
+  
+  return `
+    PREFIX cim: <${cimNamespace}>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?diagramObject ?objectName ?point ?pointName ?xPosition ?yPosition ?zPosition 
+           ?sequenceNumber ?drawingOrder ?isPolygon ?isTextDiagramObject ?textContent 
+           ?offsetX ?offsetY ?rotation ?style ?styleName
+    WHERE { 
+      VALUES ?diagramObject { ${objectValues} }
+      VALUES ?point { ${pointValues} }
+      
+      ?point cim:DiagramObjectPoint.DiagramObject ?diagramObject .
+      ?point cim:DiagramObjectPoint.xPosition ?x .
+      ?point cim:DiagramObjectPoint.yPosition ?y .
+      
+      BIND(xsd:float(?x) AS ?xPosition) .
+      BIND(xsd:float(?y) AS ?yPosition) .
+      
+      # Get type information
+      ?diagramObject rdf:type ?type .
+      BIND(?type = cim:TextDiagramObject AS ?isTextDiagramObject) .
+      
+      # Optional fields - same as in main query
+      OPTIONAL {
+        ?diagramObject cim:IdentifiedObject.name ?objName .
+      }
+      BIND(IF(bound(?objName), ?objName, "") AS ?objectName) .
+      
+      OPTIONAL {
+        ?point cim:IdentifiedObject.name ?ptName .
+      }
+      BIND(IF(bound(?ptName), ?ptName, "") AS ?pointName) .
+      
+      OPTIONAL {
+        ?point cim:DiagramObjectPoint.zPosition ?z .
+      }
+      BIND(IF(bound(?z), xsd:float(?z), ?z) AS ?zPosition) .
+      
+      OPTIONAL {
+        ?point cim:DiagramObjectPoint.sequenceNumber ?seqNum .
+      }
+      BIND(IF(bound(?seqNum), xsd:integer(?seqNum), 0) AS ?sequenceNumber) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.drawingOrder ?drawOrd .
+      }
+      BIND(IF(bound(?drawOrd), xsd:integer(?drawOrd), 0) AS ?drawingOrder) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.isPolygon ?isPoly .
+      }
+      BIND(IF(bound(?isPoly), xsd:boolean(?isPoly), false) AS ?isPolygon) .
+      
+      OPTIONAL {
+        ?diagramObject cim:TextDiagramObject.text ?text .
+      }
+      BIND(IF(bound(?text), ?text, "") AS ?textContent) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.offsetX ?offX .
+      }
+      BIND(IF(bound(?offX), xsd:float(?offX), ?offX) AS ?offsetX) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.offsetY ?offY .
+      }
+      BIND(IF(bound(?offY), xsd:float(?offY), ?offY) AS ?offsetY) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.rotation ?rot .
+      }
+      BIND(IF(bound(?rot), xsd:float(?rot), ?rot) AS ?rotation) .
+      
+      OPTIONAL {
+        ?diagramObject cim:DiagramObject.DiagramObjectStyle ?styleObj .
+        OPTIONAL {
+          ?styleObj cim:IdentifiedObject.name ?stName .
+        }
+        BIND(?styleObj AS ?style) .
+        BIND(IF(bound(?stName), ?stName, "") AS ?styleName) .
+      }
+    }
+    ORDER BY ?drawingOrder ?sequenceNumber
+  `;
 }
 
 /**

@@ -424,11 +424,13 @@ export class SparqlService {
       const objectMapping = new Map<string, string>();
       const gluePointMapping = new Map<string, string>();
       const newPointIris: string[] = [];
+      const newObjectIris: string[] = [];
       
       // Create new IRIs for each DiagramObject
       objectIris.forEach(iri => {
         const newIri = `http://tempuri.org/diagramObject/${uuidv4()}`;
         objectMapping.set(iri, newIri);
+        newObjectIris.push(newIri);
       });
       
       // Step 2: Clone all DiagramObjects (including TextDiagramObjects)
@@ -596,7 +598,7 @@ export class SparqlService {
       }
       
       return {
-        objectIris: Array.from(objectMapping.values()),
+        objectIris: newObjectIris,
         pointIris: newPointIris
       };
     } catch (error) {
@@ -604,7 +606,6 @@ export class SparqlService {
       throw error;
     }
   }
-
 
   /**
    * Delete DiagramObjects, their points, and linked glue points
