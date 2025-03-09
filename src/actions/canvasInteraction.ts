@@ -18,7 +18,8 @@ import {
   addNewPointToLine,
   deletePointFromLine,
   copySelectedDiagramObjects,
-  pasteDiagramObjects
+  pasteDiagramObjects,
+  deleteSelectedDiagramObjects
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
@@ -46,7 +47,10 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       } else if (e.key === 'v') {
         // Paste operation
         pasteDiagramObjects(currentMouseWorldPos);
-      }
+      } 
+    } else if (e.key === 'Delete') {
+      // Delete operation
+      deleteSelectedDiagramObjects();
     }
   }
   

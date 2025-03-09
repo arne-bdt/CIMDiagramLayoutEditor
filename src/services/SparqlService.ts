@@ -610,6 +610,111 @@ export class SparqlService {
       throw error;
     }
   }
+
+
+  /**
+   * Delete DiagramObjects, their points, and linked glue points
+   * 
+   * @param objectIris - IRIs of objects to delete
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async deleteDiagramObjects(
+    objectIris: string[],
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // Step 1: Find all DiagramObjectPoints and DiagramObjectGluePoints linked to these objects
+      const linkedQuery = `
+        PREFIX cim: <${cimNamespace}>
+        
+        SELECT ?point ?gluePoint
+        WHERE {
+          VALUES ?obj {
+            ${objectIris.map(iri => `<${iri}>`).join('\n          ')}
+          }
+          ?point cim:DiagramObjectPoint.DiagramObject ?obj .
+          OPTIONAL { ?point cim:DiagramObjectPoint.DiagramObjectGluePoint ?gluePoint . }
+        }
+      `;
+      
+      const linkedResult = await this.executeQuery(linkedQuery);
+      
+      // Extract point and glue point IRIs
+      const pointIris: string[] = [];
+      const gluePointIris: string[] = [];
+      
+      if (linkedResult.results && linkedResult.results.bindings) {
+        linkedResult.results.bindings.forEach(binding => {
+          if (binding.point) pointIris.push(binding.point.value);
+          if (binding.gluePoint) gluePointIris.push(binding.gluePoint.value);
+        });
+      }
+      
+      // Remove duplicates from glue points
+      const uniqueGluePointIris = [...new Set(gluePointIris)];
+      
+      // Step 2: Delete all linked DiagramObjectGluePoints (if any)
+      if (uniqueGluePointIris.length > 0) {
+        const deleteGluePointsQuery = `
+          PREFIX cim: <${cimNamespace}>
+          
+          DELETE {
+            ?gluePoint ?p ?o .
+          }
+          WHERE {
+            VALUES ?gluePoint {
+              ${uniqueGluePointIris.map(iri => `<${iri}>`).join('\n            ')}
+            }
+            ?gluePoint ?p ?o .
+          }
+        `;
+        
+        await this.executeUpdate(deleteGluePointsQuery);
+      }
+      
+      // Step 3: Delete all DiagramObjectPoints
+      if (pointIris.length > 0) {
+        const deletePointsQuery = `
+          PREFIX cim: <${cimNamespace}>
+          
+          DELETE {
+            ?point ?p ?o .
+          }
+          WHERE {
+            VALUES ?point {
+              ${pointIris.map(iri => `<${iri}>`).join('\n            ')}
+            }
+            ?point ?p ?o .
+          }
+        `;
+        
+        await this.executeUpdate(deletePointsQuery);
+      }
+      
+      // Step 4: Delete all DiagramObjects
+      const deleteObjectsQuery = `
+        PREFIX cim: <${cimNamespace}>
+        
+        DELETE {
+          ?obj ?p ?o .
+        }
+        WHERE {
+          VALUES ?obj {
+            ${objectIris.map(iri => `<${iri}>`).join('\n          ')}
+          }
+          ?obj ?p ?o .
+        }
+      `;
+      
+      await this.executeUpdate(deleteObjectsQuery);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting objects:', error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance for use throughout the application

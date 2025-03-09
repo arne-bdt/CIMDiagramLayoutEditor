@@ -849,3 +849,79 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
     setLoading(false);
   }
 }
+
+/**
+ * Delete selected DiagramObjects
+ * This will delete complete objects, not just individual points
+ */
+export async function deleteSelectedDiagramObjects(): Promise<void> {
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
+  
+  if (!currentDiagram || currentState.selectedPoints.size === 0) {
+    updateStatus('Nothing selected to delete');
+    return;
+  }
+  
+  // Find all parent DiagramObjects of selected points
+  const objectIris = new Set<string>();
+  
+  currentState.selectedPoints.forEach(pointIri => {
+    const point = currentDiagram.points.find(p => p.iri === pointIri);
+    if (point && point.parentObject) {
+      objectIris.add(point.parentObject.iri);
+    }
+  });
+  
+  if (objectIris.size === 0) {
+    updateStatus('No objects to delete');
+    return;
+  }
+  
+  // Select all points of these objects
+  selectAllPointsOfObjects(objectIris);
+
+  //wait for rendering of selected objects
+  await new Promise(r => setTimeout
+  (r, 200));
+  
+  // Show confirmation dialog
+  const confirmDelete = window.confirm(`Are you sure you want to delete ${objectIris.size} diagram object(s)?`);
+  
+  if (!confirmDelete) {
+    updateStatus('Delete operation cancelled');
+    return;
+  }
+  
+  // Start loading
+  setLoading(true);
+  updateStatus(`Deleting ${objectIris.size} diagram objects...`);
+  
+  try {
+    // Get the current namespace
+    const namespace = get(cimNamespace);
+    
+    // Delete the objects, their points, and linked glue points
+    await sparqlService.deleteDiagramObjects(
+      Array.from(objectIris),
+      namespace
+    );
+    
+    // Reload the diagram to reflect the changes
+    const diagramIri = get(selectedDiagram);
+    if (diagramIri) {
+      await diagramService.loadDiagramLayout(diagramIri);
+    }
+    
+    updateStatus(`Deleted ${objectIris.size} diagram objects`);
+    
+    // Clear selection since the points were deleted
+    clearSelection();
+    
+  } catch (error) {
+    console.error('Error deleting diagram objects:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    setLoading(false);
+  }
+}
