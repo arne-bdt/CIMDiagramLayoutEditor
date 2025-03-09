@@ -34,7 +34,7 @@ export const AppConfig = {
   // Grid settings
   grid: {
     enabled: false,     // Grid visibility by default
-    size: 20,          // Grid cell size in world coordinates
+    size: 10,           // Grid cell size in world coordinates
     snapEnabled: false, // Snap-to-grid by default
     snapThreshold: 10   // Distance in pixels for snapping
   },
