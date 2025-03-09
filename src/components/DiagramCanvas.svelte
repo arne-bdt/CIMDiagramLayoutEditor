@@ -4,7 +4,9 @@
     diagramData, 
     viewTransform, 
     interactionState,
-    positionUpdateEvent
+    positionUpdateEvent,
+    hoveredPoint,
+    showPointTooltip
   } from '../services/AppState';
   import { canvasService } from '../services/CanvasService';
   import { diagramService } from '../services/DiagramService';
@@ -12,6 +14,7 @@
   import { resizable } from '../actions/resizable';
   import { resizeCanvas } from '../utils/canvas';
   import PolygonCheckbox from '../components/PolygonCheckbox.svelte';
+  import PointTooltip from '../components/PointTooltip.svelte';
   import type { Point2D } from '../models/types';
   import type { PointModel } from '../models/PointModel';
   
@@ -22,7 +25,7 @@
   // For polygon checkbox
   let selectedPoint: PointModel | null = null;
   let showPolygonCheckbox = false;
-  let checkboxPosition: Point2D = { x: 0, y: 0 };
+  let checkboxPosition: Point2D = { x: 0, y: 0 }; 
   
   // Watch for selected points changes
   $: {
@@ -79,6 +82,11 @@
     }
   }
   
+  // Handle closing the tooltip
+  function handleTooltipClose() {
+    showPointTooltip.set(false);
+  }
+  
   onMount(() => {
     if (canvas) {
       // Initialize canvas service
@@ -106,6 +114,14 @@
       visible={true}
     />
   {/if}
+  
+  <!-- Point tooltip that appears on hover -->
+  <PointTooltip 
+    point={$hoveredPoint}
+    viewTransform={$viewTransform}
+    visible={$showPointTooltip}
+    on:close={handleTooltipClose}
+  />
 </div>
 
 <style>

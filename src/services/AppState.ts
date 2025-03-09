@@ -1075,3 +1075,13 @@ export async function rotateSelectedObjects(degrees: number): Promise<void> {
     setLoading(false);
   }
 }
+
+// Store for tracking the hovered point
+export const hoveredPoint = writable<PointModel | null>(null);
+export const showPointTooltip = writable<boolean>(false);
+
+// Function to set the hovered point
+export function setHoveredPoint(point: PointModel | null): void {
+  hoveredPoint.set(point);
+  showPointTooltip.set(point !== null);
+}

@@ -26,7 +26,9 @@ import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
 import { screenToWorld } from '../utils/geometry';
 import { findClosestLineSegment } from '../utils/geometry';
-import type { Point2D } from '@/models/types';
+import { InteractionMode, type Point2D } from '@/models/types';
+import { setHoveredPoint } from '../services/AppState';
+import type { PointModel } from '@/models/PointModel';
 
 
 /**
@@ -38,6 +40,10 @@ import type { Point2D } from '@/models/types';
 export function canvasInteraction(canvas: HTMLCanvasElement) {
   // Track mouse position for paste operations
   let currentMouseWorldPos: Point2D = { x: 0, y: 0 };
+
+  // For tracking hover state
+  let hoverTimer: number | null = null;
+  let currentHoveredPoint: PointModel | null = null;
   
   // Handle keyboard events for copy/paste
   function handleKeyDown(e: KeyboardEvent) {
@@ -160,16 +166,62 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     
     const currentState = get(interactionState);
     
-    if (currentState.mode === 'panning' && currentState.panStart) {
+    // Reset hover timer if in an active interaction mode
+    if (currentState.mode !== InteractionMode.NONE) {
+      if (hoverTimer !== null) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+      setHoveredPoint(null);
+      currentHoveredPoint = null;
+    }
+    
+    if (currentState.mode === InteractionMode.PANNING && currentState.panStart) {
       // Handle panning
       updatePanning({ x: screenX, y: screenY });
-    } else if (currentState.mode === 'selecting') {
+    } else if (currentState.mode === InteractionMode.SELECTING) {
       // Update selection rectangle
       updateSelecting(worldPos);
-    } else if (currentState.mode === 'dragging') {
+    } else if (currentState.mode === InteractionMode.DRAGGING) {
       // Update dragging positions
       updateDragging(worldPos);
+    } else {
+      // Only check for point hover when not in an active interaction mode
+      // Clear any existing hover timer
+      if (hoverTimer !== null) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+      
+      // Set a small delay before showing tooltip to prevent flickering
+      hoverTimer = setTimeout(() => {
+        const diagram = get(diagramData);
+        if (!diagram) return;
+        
+        // Calculate hover radius based on zoom level
+        const hoverRadius = AppConfig.canvas.selectionThreshold * 
+          Math.pow(currentTransform.scale, -0.3);
+        
+        // Find if we're hovering over a point
+        const pointUnderMouse = diagram.findPointNear(worldPos, hoverRadius);
+        
+        // Only update if the hovered point changed
+        if (pointUnderMouse !== currentHoveredPoint) {
+          currentHoveredPoint = pointUnderMouse;
+          setHoveredPoint(pointUnderMouse);
+        }
+      }, 200) as unknown as number;
     }
+  }
+
+  function handleMouseLeave() {
+    // Clear hover state when mouse leaves canvas
+    if (hoverTimer !== null) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+    setHoveredPoint(null);
+    currentHoveredPoint = null;
   }
 
   function handleMouseUp(e: MouseEvent) {
@@ -204,6 +256,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   // Attach event listeners
   canvas.addEventListener('mousedown', handleMouseDown);
   canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener('mouseleave', handleMouseLeave);
   canvas.addEventListener('mouseup', handleMouseUp);
   canvas.addEventListener('wheel', handleWheel);
   canvas.addEventListener('dblclick', handleDoubleClick);
@@ -214,10 +267,15 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       // Remove event listeners on cleanup
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('dblclick', handleDoubleClick);
       window.removeEventListener('keydown', handleKeyDown);
+      // Clear any pending timer
+      if (hoverTimer !== null) {
+        clearTimeout(hoverTimer);
+      }
     }
   };
 }
