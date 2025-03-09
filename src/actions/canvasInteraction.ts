@@ -26,6 +26,7 @@ import { screenToWorld } from '../utils/geometry';
 import { findClosestLineSegment } from '../utils/geometry';
 import type { Point2D } from '@/models/types';
 
+
 /**
  * Svelte action for canvas interactions
  * Handles mouse and wheel events for panning, zooming, selecting, and dragging
@@ -34,7 +35,7 @@ import type { Point2D } from '@/models/types';
  */
 export function canvasInteraction(canvas: HTMLCanvasElement) {
   // Track mouse position for paste operations
-  let currentMousePosition: Point2D = { x: 0, y: 0 };
+  let currentMouseWorldPos: Point2D = { x: 0, y: 0 };
   
   // Handle keyboard events for copy/paste
   function handleKeyDown(e: KeyboardEvent) {
@@ -44,9 +45,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
         copySelectedDiagramObjects();
       } else if (e.key === 'v') {
         // Paste operation
-        const currentTransform = get(viewTransform);
-        const worldPos = screenToWorld(currentMousePosition.x, currentMousePosition.y, currentTransform);
-        pasteDiagramObjects(worldPos);
+        pasteDiagramObjects(currentMouseWorldPos);
       }
     }
   }
@@ -141,6 +140,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     
     const currentTransform = get(viewTransform);
     const worldPos = screenToWorld(screenX, screenY, currentTransform);
+    currentMouseWorldPos = worldPos;
     
     // Update coordinates display
     updateCoordinates(worldPos);

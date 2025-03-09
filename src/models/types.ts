@@ -95,6 +95,7 @@ export interface SparqlBinding {
   [key: string]: {
     type: string;
     value: string;
+    datatype: string
   };
 }
 

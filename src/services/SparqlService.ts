@@ -6,6 +6,7 @@ import {
   getSparqlUpdateEndpoint, 
   isValidEndpoint 
 } from '../utils/sparql';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Service for handling SPARQL requests
@@ -401,91 +402,211 @@ export class SparqlService {
     }
   }
 
-  /**
-   * Build a query to insert cloned DiagramObjects and their points
+ /**
+   * Clone objects with their points and apply an offset to the point positions
    * 
    * @param diagramIri - Diagram IRI
-   * @param objects - New diagram objects
-   * @param points - New diagram points
+   * @param objectIris - IRIs of objects to clone
+   * @param offsetX - X offset to apply to point positions
+   * @param offsetY - Y offset to apply to point positions
    * @param cimNamespace - CIM namespace
-   * @returns SPARQL insert query
+   * @returns New object and point IRIs
    */
-  buildInsertClonedObjectsQuery(
+  async cloneObjectsWithOffset(
     diagramIri: string,
-    objects: any[],
-    points: any[],
+    objectIris: string[],
+    offsetX: number,
+    offsetY: number,
     cimNamespace: string
-  ): string {
-    let insertClause = 'INSERT DATA {\n';
-    
-    // Add triples for objects
-    objects.forEach(obj => {
-      insertClause += `  <${obj.iri}> rdf:type ${obj.isText ? 'cim:TextDiagramObject' : 'cim:DiagramObject'} .\n`;
-      insertClause += `  <${obj.iri}> cim:DiagramObject.Diagram <${diagramIri}> .\n`;
-      
-      if (obj.drawingOrder !== undefined) {
-        insertClause += `  <${obj.iri}> cim:DiagramObject.drawingOrder "${obj.drawingOrder}"^^xsd:integer .\n`;
-      }
-      
-      if (obj.isPolygon !== undefined) {
-        insertClause += `  <${obj.iri}> cim:DiagramObject.isPolygon "${obj.isPolygon}"^^xsd:boolean .\n`;
-      }
-      
-      if (obj.isText && obj.textContent) {
-        insertClause += `  <${obj.iri}> cim:TextDiagramObject.text "${obj.textContent.replace(/"/g, '\\"')}" .\n`;
-      }
-    });
-    
-    // Add triples for points
-    points.forEach(point => {
-      insertClause += `  <${point.iri}> rdf:type cim:DiagramObjectPoint .\n`;
-      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.DiagramObject <${point.parentObject.iri}> .\n`;
-      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.xPosition "${point.x}"^^xsd:float .\n`;
-      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.yPosition "${point.y}"^^xsd:float .\n`;
-      insertClause += `  <${point.iri}> cim:DiagramObjectPoint.sequenceNumber "${point.sequenceNumber}"^^xsd:integer .\n`;
-    });
-    
-    insertClause += '}';
-    
-    return `
-      PREFIX cim: <${cimNamespace}>
-      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-      
-      ${insertClause}
-    `;
-  }
-
-  /**
-   * Insert cloned DiagramObjects and their points
-   * 
-   * @param diagramIri - Diagram IRI
-   * @param objects - New diagram objects
-   * @param points - New diagram points
-   * @param cimNamespace - CIM namespace
-   * @returns Success status
-   */
-  async insertClonedObjects(
-    diagramIri: string,
-    objects: any[],
-    points: any[],
-    cimNamespace: string
-  ): Promise<boolean> {
+  ): Promise<{ objectIris: string[], pointIris: string[] }> {
     try {
-      // Build query to insert objects and points
-      const query = this.buildInsertClonedObjectsQuery(
-        diagramIri,
-        objects,
-        points,
-        cimNamespace
-      );
+      // Step 1: Create mappings for new IRIs
+      const objectMapping = new Map<string, string>();
+      const gluePointMapping = new Map<string, string>();
+      const newPointIris: string[] = [];
       
-      // Execute query
-      await this.executeUpdate(query);
+      // Create new IRIs for each DiagramObject
+      objectIris.forEach(iri => {
+        const newIri = `http://tempuri.org/diagramObject/${uuidv4()}`;
+        objectMapping.set(iri, newIri);
+      });
       
-      return true;
+      // Step 2: Clone all DiagramObjects (including TextDiagramObjects)
+      let objectCloneQuery = `
+        PREFIX cim: <${cimNamespace}>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        INSERT {
+          ?newObj ?p ?o .
+          ?newObj cim:DiagramObject.Diagram <${diagramIri}> .
+        }
+        WHERE {
+          VALUES (?obj ?newObj) {
+            ${Array.from(objectMapping.entries()).map(([oldIri, newIri]) => `(<${oldIri}> <${newIri}>)`).join('\n          ')}
+          }
+          ?obj ?p ?o .
+          FILTER(?p != cim:DiagramObject.Diagram)
+        }
+      `;
+      
+      await this.executeUpdate(objectCloneQuery);
+      
+      // Step 3: Find all DiagramGluePoints linked to the DiagramObjects via DiagramObjectPoints
+      const gluePointsQuery = `
+        PREFIX cim: <${cimNamespace}>
+        
+        SELECT DISTINCT ?gluePoint
+        WHERE {
+          VALUES ?obj {
+            ${objectIris.map(iri => `<${iri}>`).join('\n          ')}
+          }
+          ?point cim:DiagramObjectPoint.DiagramObject ?obj .
+          ?point cim:DiagramObjectPoint.DiagramObjectGluePoint ?gluePoint .
+        }
+      `;
+      
+      const gluePointsResult = await this.executeQuery(gluePointsQuery);
+      
+      // Step 4: Create new IRIs for GluePoints and build mapping
+      if (gluePointsResult.results && gluePointsResult.results.bindings) {
+        gluePointsResult.results.bindings.forEach(binding => {
+          if (binding.gluePoint) {
+            const oldGlueIri = binding.gluePoint.value;
+            const newGlueIri = `http://tempuri.org/gluePoint/${uuidv4()}`;
+            gluePointMapping.set(oldGlueIri, newGlueIri);
+          }
+        });
+      }
+      
+      // Step 5: Clone the DiagramGluePoints if any were found
+      if (gluePointMapping.size > 0) {
+        const gluePointCloneQuery = `
+          PREFIX cim: <${cimNamespace}>
+          PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+          
+          INSERT {
+            ?newGlue ?p ?o .
+          }
+          WHERE {
+            VALUES (?glue ?newGlue) {
+              ${Array.from(gluePointMapping.entries()).map(([oldIri, newIri]) => `(<${oldIri}> <${newIri}>)`).join('\n            ')}
+            }
+            ?glue ?p ?o .
+          }
+        `;
+        
+        await this.executeUpdate(gluePointCloneQuery);
+      }
+      
+      // Step 6: Clone the DiagramObjectPoints with adjusted positions
+      const pointsQuery = `
+        PREFIX cim: <${cimNamespace}>
+        
+        SELECT ?point ?obj ?gluePoint ?x ?y
+        WHERE {
+          VALUES ?obj {
+            ${objectIris.map(iri => `<${iri}>`).join('\n          ')}
+          }
+          ?point cim:DiagramObjectPoint.DiagramObject ?obj .
+          ?point cim:DiagramObjectPoint.xPosition ?x .
+          ?point cim:DiagramObjectPoint.yPosition ?y .
+          OPTIONAL { ?point cim:DiagramObjectPoint.DiagramObjectGluePoint ?gluePoint . }
+        }
+      `;
+      
+      const pointsResult = await this.executeQuery(pointsQuery);
+      
+      if (pointsResult.results && pointsResult.results.bindings && pointsResult.results.bindings.length > 0) {
+        // Prepare insert query for points
+        let pointCloneQuery = `
+          PREFIX cim: <${cimNamespace}>
+          PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+          PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+          
+          INSERT {
+        `;
+        
+        // Process each point
+        pointsResult.results.bindings.forEach(binding => {
+          if (binding.point) {
+            //const oldPointIri = binding.point.value;
+            const newPointIri = `http://tempuri.org/point/${uuidv4()}`;
+            newPointIris.push(newPointIri);
+            
+            pointCloneQuery += `
+              <${newPointIri}> ?p ?o .
+            `;
+            
+            // Add special triples with new references
+            if (binding.obj && objectMapping.has(binding.obj.value)) {
+              pointCloneQuery += `
+                <${newPointIri}> cim:DiagramObjectPoint.DiagramObject <${objectMapping.get(binding.obj.value)}> .
+              `;
+            }
+            
+            if (binding.gluePoint && gluePointMapping.has(binding.gluePoint.value)) {
+              pointCloneQuery += `
+                <${newPointIri}> cim:DiagramObjectPoint.DiagramObjectGluePoint <${gluePointMapping.get(binding.gluePoint.value)}> .
+              `;
+            }
+            
+            // Add adjusted position
+            if (binding.x && binding.y) {
+              const newX = parseFloat(binding.x.value) + offsetX;
+              const newY = parseFloat(binding.y.value) + offsetY;
+              
+              pointCloneQuery += `
+                <${newPointIri}> cim:DiagramObjectPoint.xPosition "${newX}"^^xsd:float .
+                <${newPointIri}> cim:DiagramObjectPoint.yPosition "${newY}"^^xsd:float .
+              `;
+            }
+          }
+        });
+        
+        // Complete the first part of the query
+        pointCloneQuery += `
+          }
+          WHERE {
+        `;
+        
+        // For each point, get all its properties except the ones we've specially handled
+        pointsResult.results.bindings.forEach((binding, index) => {
+          if (binding.point) {
+            const oldPointIri = binding.point.value;
+            const newPointIri = newPointIris[index];
+            
+            pointCloneQuery += `
+              {
+                <${oldPointIri}> ?p ?o .
+                FILTER(?p != cim:DiagramObjectPoint.DiagramObject)
+                FILTER(?p != cim:DiagramObjectPoint.DiagramObjectGluePoint)
+                FILTER(?p != cim:DiagramObjectPoint.xPosition)
+                FILTER(?p != cim:DiagramObjectPoint.yPosition)
+                BIND(<${newPointIri}> AS ?newPoint)
+              }
+            `;
+            
+            // Add UNION except for the last one
+            if (index < pointsResult.results.bindings.length - 1) {
+              pointCloneQuery += ` UNION `;
+            }
+          }
+        });
+        
+        // Complete the query
+        pointCloneQuery += `
+          }
+        `;
+        
+        await this.executeUpdate(pointCloneQuery);
+      }
+      
+      return {
+        objectIris: Array.from(objectMapping.values()),
+        pointIris: newPointIris
+      };
     } catch (error) {
-      console.error('Error inserting cloned objects:', error);
+      console.error('Error in cloneObjectsWithOffset:', error);
       throw error;
     }
   }

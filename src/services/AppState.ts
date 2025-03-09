@@ -682,7 +682,10 @@ export function copySelectedDiagramObjects(): void {
   }
   
   // Write object IRIs to clipboard
-  const clipboardText = Array.from(objectIris).join('\n');
+  const clipboardText = JSON.stringify({
+     type: 'DiagramObject', 
+     IRIs: Array.from(objectIris) 
+    });
   navigator.clipboard.writeText(clipboardText)
     .then(() => {
       // Select all points of the copied objects
@@ -778,10 +781,16 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
     updateStatus('Error reading from clipboard');
     return;
   }
+
+  var result = JSON.parse(clipboardText);
+  if(result == null || result.type !== 'DiagramObject') {
+    updateStatus('No valid diagram objects in clipboard');
+    return;
+  }
   
   // Parse object IRIs
-  const objectIris = new Set<string>(
-    clipboardText.split('\n').filter(iri => iri.trim() !== '')
+  const objectIris = new Set<string>(    
+    result.IRIs
   );
   
   if (objectIris.size === 0) {
@@ -789,29 +798,11 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
     return;
   }
   
-  const currentDiagram = get(diagramData);
-  if (!currentDiagram) {
-    updateStatus('No diagram loaded');
-    return;
-  }
-  
   // Start loading
   setLoading(true);
-  console.log(`Pasting ${objectIris.size} diagram objects...`);
   updateStatus(`Pasting ${objectIris.size} diagram objects...`);
   
   try {
-    // Find all objects with their points
-    const originalObjects = currentDiagram.objects.filter(obj => 
-      objectIris.has(obj.iri)
-    );
-    
-    if (originalObjects.length === 0) {
-      updateStatus('No matching objects found in diagram');
-      setLoading(false);
-      return;
-    }
-    
     // Calculate bounds of selected objects
     const bounds = getObjectsBounds(objectIris);
     
@@ -822,118 +813,39 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
     const offsetX = pastePosition.x - boundsCenter.x;
     const offsetY = pastePosition.y - boundsCenter.y;
     
-    // Create copies of objects and points
-    const newObjects: DiagramObjectModel[] = [];
-    const newPoints: PointModel[] = [];
-    const newSelectedPoints = new Set<string>();
+    // Get the current namespace and diagram
+    const namespace = get(cimNamespace);
+    const diagramIri = get(selectedDiagram);
     
-    // Map from original IRI to new IRI for object references
-    const iriMap = new Map<string, string>();
-    
-    // First create new objects
-    for (const origObject of originalObjects) {
-      // Generate new IRI
-      const newObjectIri = `http://tempuri.org/diagramObject/${uuidv4()}`;
-      iriMap.set(origObject.iri, newObjectIri);
-      
-      // Create copy of the object
-      const newObject = new DiagramObjectModel(
-        newObjectIri,
-        origObject.drawingOrder,
-        origObject.isPolygon,
-        origObject.isText,
-        origObject.textContent
-      );
-      
-      newObjects.push(newObject);
+    if (!diagramIri) {
+      throw new Error('No diagram selected');
     }
     
-    // Then create new points for each object
-    for (const origObject of originalObjects) {
-      const newObjectIri = iriMap.get(origObject.iri);
-      if (!newObjectIri) continue;
-      
-      const newObject = newObjects.find(obj => obj.iri === newObjectIri);
-      if (!newObject) continue;
-      
-      // Create new points with adjusted positions
-      for (const origPoint of origObject.points) {
-        const newPointIri = `http://tempuri.org/point/${uuidv4()}`;
-        
-        // Apply offset to position
-        const newX = origPoint.x + offsetX;
-        const newY = origPoint.y + offsetY;
-        
-        const newPoint = new PointModel(
-          newPointIri,
-          newX,
-          newY,
-          origPoint.sequenceNumber,
-          newObject
-        );
-        
-        newObject.addPoint(newPoint);
-        newPoints.push(newPoint);
-        newSelectedPoints.add(newPointIri);
-      }
+    // Execute SPARQL query to create copies with adjusted positions
+    const newObjPointIris = await sparqlService.cloneObjectsWithOffset(
+      diagramIri,
+      Array.from(objectIris),
+      offsetX,
+      offsetY,
+      namespace
+    );
+    
+    // Reload the diagram to show the newly added objects
+    await diagramService.loadDiagramLayout(diagramIri);
+    
+    // Select the newly created points
+    if (newObjPointIris && newObjPointIris.pointIris) {
+      interactionState.update(state => ({
+        ...state,
+        selectedPoints: new Set(newObjPointIris.pointIris)
+      }));
     }
     
-    // Add new objects and points to the diagram
-    for (const obj of newObjects) {
-      currentDiagram.addObject(obj);
-    }
-    
-    for (const point of newPoints) {
-      currentDiagram.addPoint(point);
-    }
-    
-    // Update diagram
-    diagramData.set(currentDiagram);
-    
-    // Clear original selection and select only the new points
-    interactionState.update(state => ({
-      ...state,
-      selectedPoints: newSelectedPoints
-    }));
-    
-    // Save to SPARQL
-    await savePastedObjectsToSparql(newObjects, newPoints);
-    
-    updateStatus(`Pasted ${newObjects.length} diagram objects`);
+    updateStatus(`Pasted ${objectIris.size} diagram objects`);
   } catch (error) {
     console.error('Error pasting diagram objects:', error);
     updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     setLoading(false);
-  }
-}
-
-/**
- * Save pasted objects and points to the SPARQL endpoint
- * 
- * @param objects - New diagram objects
- * @param points - New diagram points
- */
-async function savePastedObjectsToSparql(
-  objects: DiagramObjectModel[],
-  points: PointModel[]
-): Promise<void> {
-  const namespace = get(cimNamespace);
-  const diagramIri = get(selectedDiagram);
-  
-  if (!diagramIri) {
-    throw new Error('No diagram selected');
-  }
-  
-  try {
-    // Build and execute queries to save objects and points
-    await sparqlService.insertClonedObjects(
-      diagramIri,
-      objects,
-      points,
-      namespace
-    );
-  } catch (error) {
-    throw error;
   }
 }
