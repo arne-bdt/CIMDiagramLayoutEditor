@@ -66,7 +66,22 @@ npm run dev
 yarn dev
 ```
 
-The application will be available at http://localhost:3000
+The development server will:
+1. Build the user documentation from AsciiDoc to HTML
+2. Start the Vite development server
+3. Make the application available at http://localhost:3000
+
+### Building Documentation
+
+The application uses AsciiDoc for documentation, which is converted to HTML at build time:
+
+```bash
+npm run build:docs
+# or
+yarn build:docs
+```
+
+This command processes the AsciiDoc files in the `docs/` directory and generates HTML files in the `public/docs/` directory for use in the application.
 
 ### Building for Production
 
@@ -76,7 +91,7 @@ npm run build
 yarn build
 ```
 
-This will create a production-ready build in the `dist` directory.
+This will build the documentation and create a production-ready application in the `dist` directory.
 
 ## User Guide
 
@@ -86,15 +101,22 @@ For detailed instructions on how to use the application, including keyboard shor
 
 ```
 cgmes-editor-svelte/
+├── docs/                     # Documentation source files
+│   └── user-guide.adoc       # User guide in AsciiDoc format
+├── public/                   # Static files
+│   └── docs/                 # Generated documentation
+│       ├── user-guide.html   # Generated HTML documentation
+├── scripts/                  # Build scripts
+│   └── build-docs.js         # Script to convert AsciiDoc to HTML
 ├── src/                      # Source code
 │   ├── components/           # UI Components
+│   │   ├── Help.svelte       # Help component for documentation
 │   │   ├── ui/               # Reusable UI components
 │   ├── models/               # Data models
 │   ├── services/             # Application services
 │   ├── utils/                # Utility functions
 │   ├── actions/              # Svelte actions
 │   └── styles/               # CSS styles
-├── public/                   # Static files
 └── tests/                    # Tests
 ```
 
