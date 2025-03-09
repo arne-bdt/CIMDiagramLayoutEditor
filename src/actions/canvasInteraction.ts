@@ -19,7 +19,8 @@ import {
   deletePointFromLine,
   copySelectedDiagramObjects,
   pasteDiagramObjects,
-  deleteSelectedDiagramObjects
+  deleteSelectedDiagramObjects,
+  rotateSelectedObjects
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
@@ -47,7 +48,15 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       } else if (e.key === 'v') {
         // Paste operation
         pasteDiagramObjects(currentMouseWorldPos);
-      } 
+      } else if (e.key === 'ArrowRight') {
+        // Rotate 90 degrees clockwise
+        e.preventDefault(); // Prevent scrolling
+        rotateSelectedObjects(90);
+      } else if (e.key === 'ArrowLeft') {
+        // Rotate 90 degrees counter-clockwise
+        e.preventDefault(); // Prevent scrolling
+        rotateSelectedObjects(-90);
+      }
     } else if (e.key === 'Delete') {
       // Delete operation
       deleteSelectedDiagramObjects();

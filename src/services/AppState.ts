@@ -983,3 +983,95 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
 export const gridEnabled = writable<boolean>(AppConfig.grid.enabled);
 export const gridSnapEnabled = writable<boolean>(AppConfig.grid.snapEnabled);
 export const gridSize = writable<number>(AppConfig.grid.size); 
+
+/**
+ * Rotate selected objects around the center of selection
+ * 
+ * @param degrees - Degrees to rotate (positive = clockwise, negative = counter-clockwise)
+ */
+export async function rotateSelectedObjects(degrees: number): Promise<void> {
+  const currentState = get(interactionState);
+  const currentDiagram = get(diagramData);
+  
+  if (!currentDiagram || currentState.selectedPoints.size === 0) {
+    updateStatus('Nothing selected to rotate');
+    return;
+  }
+  
+  // Find all parent DiagramObjects of selected points
+  const objectIris = new Set<string>();
+  
+  currentState.selectedPoints.forEach(pointIri => {
+    const point = currentDiagram.points.find(p => p.iri === pointIri);
+    if (point && point.parentObject) {
+      objectIris.add(point.parentObject.iri);
+    }
+  });
+  
+  if (objectIris.size === 0) {
+    updateStatus('No objects to rotate');
+    return;
+  }
+  
+  // Select all points of these objects
+  selectAllPointsOfObjects(objectIris);
+  
+  // Find center of selection
+  const bounds = getObjectsBounds(objectIris);
+  const center = getBoundsCenter(bounds);
+  
+  // Convert degrees to radians
+  const radians = (degrees * Math.PI) / 180;
+  
+  // Calculate the sine and cosine of the angle
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  
+  // Start loading
+  setLoading(true);
+  updateStatus(`Rotating ${objectIris.size} diagram objects...`);
+  
+  try {
+    // Get all points that belong to selected objects
+    const pointsToRotate: { point: PointModel; newX: number; newY: number }[] = [];
+    
+    currentDiagram.points.forEach(point => {
+      if (point.parentObject && objectIris.has(point.parentObject.iri)) {
+        // Calculate new position after rotation
+        const dx = point.x - center.x;
+        const dy = point.y - center.y;
+        
+        // Apply rotation matrix
+        const newX = center.x + (dx * cos - dy * sin);
+        const newY = center.y + (dx * sin + dy * cos);
+        
+        pointsToRotate.push({ point, newX, newY });
+      }
+    });
+    
+    // Update points in the model
+    pointsToRotate.forEach(({ point, newX, newY }) => {
+      point.x = newX;
+      point.y = newY;
+    });
+    
+    // Update the diagram
+    diagramData.set(currentDiagram);
+    
+    // Create update data for SPARQL
+    const updateData = {
+      points: pointsToRotate.map(({ point }) => point.iri),
+      newPositions: pointsToRotate.map(({ newX, newY }) => ({ x: newX, y: newY }))
+    };
+    
+    // Update points in SPARQL
+    await sparqlService.updatePointPositionsAbsolute(updateData, get(cimNamespace));
+    
+    updateStatus(`Rotated ${objectIris.size} diagram objects by ${degrees} degrees`);
+  } catch (error) {
+    console.error('Error rotating objects:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    setLoading(false);
+  }
+}

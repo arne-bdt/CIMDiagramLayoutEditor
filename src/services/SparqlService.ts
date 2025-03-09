@@ -715,6 +715,60 @@ export class SparqlService {
       throw error;
     }
   }
+
+  /**
+   * Update point positions with absolute coordinates
+   * 
+   * @param updateData - Point IDs and their new positions
+   * @param cimNamespace - CIM namespace
+   * @returns Success status
+   */
+  async updatePointPositionsAbsolute(
+    updateData: { points: string[], newPositions: { x: number, y: number }[] },
+    cimNamespace: string
+  ): Promise<boolean> {
+    try {
+      // Build update query
+      let updateQuery = `
+        PREFIX cim: <${cimNamespace}>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        
+        DELETE {
+          ?point cim:DiagramObjectPoint.xPosition ?oldX .
+          ?point cim:DiagramObjectPoint.yPosition ?oldY .
+        }
+        INSERT {
+      `;
+      
+      // Add insert statements for each point
+      updateData.points.forEach((pointIri, index) => {
+        const newPos = updateData.newPositions[index];
+        updateQuery += `
+          <${pointIri}> cim:DiagramObjectPoint.xPosition "${newPos.x}"^^xsd:float .
+          <${pointIri}> cim:DiagramObjectPoint.yPosition "${newPos.y}"^^xsd:float .
+        `;
+      });
+      
+      updateQuery += `
+        }
+        WHERE {
+          VALUES ?point {
+            ${updateData.points.map(iri => `<${iri}>`).join('\n          ')}
+          }
+          ?point cim:DiagramObjectPoint.xPosition ?oldX .
+          ?point cim:DiagramObjectPoint.yPosition ?oldY .
+        }
+      `;
+      
+      // Execute the update
+      await this.executeUpdate(updateQuery);
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating point positions:', error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance for use throughout the application
