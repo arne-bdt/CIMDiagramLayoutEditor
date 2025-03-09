@@ -45,6 +45,7 @@ const initialInteractionState: InteractionState = {
   mode: InteractionMode.NONE,
   dragStart: null,
   dragEnd: null,
+  dragAnchorPoint: null,
   panStart: null,
   selectedPoints: new Set<string>(),
   originalPositions: new Map<string, Point2D>()
@@ -121,6 +122,21 @@ export function startDragging(position: Point2D): void {
   
   // Store original positions
   const originalPositions = new Map<string, Point2D>();
+  let dragAnchorPoint: string | null = null;
+  
+  // Find the initial point that's being dragged (closest to the start position)
+  const currentTransform = get(viewTransform);
+  const selectionRadius = AppConfig.canvas.selectionThreshold * 
+    Math.pow(currentTransform.scale, -0.3);
+  
+  const clickedPoint = currentDiagram.findPointNear(position, selectionRadius);
+  
+  if (clickedPoint && currentState.selectedPoints.has(clickedPoint.iri)) {
+    dragAnchorPoint = clickedPoint.iri;
+  } else if (currentState.selectedPoints.size > 0) {
+    // If no specific point was clicked, use the first selected point as anchor
+    dragAnchorPoint = Array.from(currentState.selectedPoints)[0];
+  }
   
   if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
     currentDiagram.points.forEach((point: PointModel) => {
@@ -135,8 +151,20 @@ export function startDragging(position: Point2D): void {
     mode: InteractionMode.DRAGGING,
     dragStart: position,
     dragEnd: position,
+    dragAnchorPoint,
     originalPositions
   }));
+}
+
+/**
+ * Snap a coordinate value to the nearest grid line
+ * 
+ * @param value - Coordinate value to snap
+ * @param gridSize - Grid size
+ * @returns Snapped coordinate value
+ */
+function snapToGrid(value: number, gridSize: number): number {
+  return Math.round(value / gridSize) * gridSize;
 }
 
 export function updateDragging(position: Point2D): void {
@@ -149,16 +177,41 @@ export function updateDragging(position: Point2D): void {
     return;
   }
   
-  // Calculate delta
-  const dx = position.x - currentState.dragStart.x;
-  const dy = position.y - currentState.dragStart.y;
+  // Calculate base delta
+  let dx = position.x - currentState.dragStart.x;
+  let dy = position.y - currentState.dragStart.y;
   
-  // Update positions for preview
+  // Check if grid snapping is enabled
+  const isSnapEnabled = get(gridSnapEnabled);
+  const currentGridSize = get(gridSize);
+  
+  // If we have an anchor point (the first dragged point) and snapping is enabled,
+  // adjust the deltas to ensure the anchor point snaps to the grid
+  if (isSnapEnabled && currentState.dragAnchorPoint) {
+    const originalAnchor = currentState.originalPositions.get(currentState.dragAnchorPoint);
+    
+    if (originalAnchor) {
+      // Calculate where the anchor point would be without snapping
+      const unsnappedX = originalAnchor.x + dx;
+      const unsnappedY = originalAnchor.y + dy;
+      
+      // Calculate where the anchor point should be with snapping
+      const snappedX = snapToGrid(unsnappedX, currentGridSize);
+      const snappedY = snapToGrid(unsnappedY, currentGridSize);
+      
+      // Adjust the deltas to account for the snap
+      dx += (snappedX - unsnappedX);
+      dy += (snappedY - unsnappedY);
+    }
+  }
+  
+  // Update positions for preview using the adjusted deltas
   if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
     currentDiagram.points.forEach((point: PointModel) => {
       if (currentState.selectedPoints.has(point.iri)) {
         const original = currentState.originalPositions.get(point.iri);
         if (original) {
+          // Apply the adjusted deltas to maintain relative positions
           point.x = original.x + dx;
           point.y = original.y + dy;
         }
@@ -925,3 +978,8 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
     setLoading(false);
   }
 }
+
+// Grid state
+export const gridEnabled = writable<boolean>(AppConfig.grid.enabled);
+export const gridSnapEnabled = writable<boolean>(AppConfig.grid.snapEnabled);
+export const gridSize = writable<number>(AppConfig.grid.size); 

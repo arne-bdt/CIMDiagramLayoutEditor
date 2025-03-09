@@ -9,8 +9,11 @@ import {
   renderSelectionRectangle, 
   renderLineOrPolygon,
   renderPoint,
-  renderTextObject
+  renderTextObject,
+  renderGrid
 } from '../utils/canvas';
+import { get } from 'svelte/store';
+import { gridEnabled, gridSize, diagramData, viewTransform, interactionState } from './AppState';
 
 /**
  * Service for canvas rendering
@@ -19,6 +22,18 @@ export class CanvasService {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
   
+  constructor() {
+    // Subscribe to gridSize changes to trigger re-render
+    gridSize.subscribe(value => {
+      const diagram = get(diagramData);
+      const view = get(viewTransform);
+      const interaction = get(interactionState);
+      if (this.canvas && diagram) {
+        this.render(diagram, view, interaction);
+      }
+    });
+  }
+
   /**
    * Set canvas element
    * 
@@ -47,6 +62,7 @@ export class CanvasService {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
     if (!diagram || diagram.objects.length === 0) {
+      this.ctx.restore();
       return;
     }
     
@@ -54,6 +70,18 @@ export class CanvasService {
     this.ctx.save();
     this.ctx.translate(viewTransform.offsetX, viewTransform.offsetY);
     this.ctx.scale(viewTransform.scale, viewTransform.scale);
+
+    // Render grid if enabled
+    const isGridEnabled = get(gridEnabled);
+    if (isGridEnabled) {
+      renderGrid(
+        this.ctx, 
+        viewTransform, 
+        this.canvas.width, 
+        this.canvas.height, 
+        get(gridSize)
+      );
+    }
     
     // Sort objects by drawing order
     const sortedObjects = [...diagram.objects].sort((a, b) => a.drawingOrder - b.drawingOrder);

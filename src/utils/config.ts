@@ -19,15 +19,24 @@ export const AppConfig = {
     } as DrawingPointConfig,
     
     colors: {
-      regularPoint: 'green',     // Points in paths/polygons
-      selectedPoint: 'red',      // Selected points
-      singlePoint: 'blue',       // Single points not in paths
-      line: 'black',             // Lines connecting points
-      selectionRectangle: 'blue' // Selection rectangle
+      regularPoint: 'green',      // Points in paths/polygons
+      selectedPoint: 'red',       // Selected points
+      singlePoint: 'blue',        // Single points not in paths
+      line: 'black',              // Lines connecting points
+      selectionRectangle: 'blue', // Selection rectangle
+      grid: 'rgba(200, 200, 200, 0.5)' // Light gray grid lines
     },
     
     selectionThreshold: 6,
     zoomFactor: 1.1
+  },
+
+  // Grid settings
+  grid: {
+    enabled: false,     // Grid visibility by default
+    size: 20,          // Grid cell size in world coordinates
+    snapEnabled: false, // Snap-to-grid by default
+    snapThreshold: 10   // Distance in pixels for snapping
   },
   
   // CIM namespaces for different CGMES versions

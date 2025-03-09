@@ -158,3 +158,45 @@ export function renderSelectionRectangle(
   ctx.setLineDash([]);
   ctx.strokeRect(startX, startY, width, height);
 }
+
+
+/**
+ * Render grid on canvas
+ * 
+ * @param ctx - Canvas context
+ * @param viewTransform - Current view transformation
+ * @param canvasWidth - Canvas width
+ * @param canvasHeight - Canvas height
+ * @param gridSize - Grid size in world units
+ */
+export function renderGrid(
+  ctx: CanvasRenderingContext2D,
+  viewTransform: ViewTransform,
+  canvasWidth: number,
+  canvasHeight: number,
+  gridSize: number
+): void {
+  const startX = Math.floor(-viewTransform.offsetX / viewTransform.scale / gridSize) * gridSize;
+  const startY = Math.floor(-viewTransform.offsetY / viewTransform.scale / gridSize) * gridSize;
+  
+  const endX = startX + Math.ceil(canvasWidth / viewTransform.scale / gridSize) * gridSize + gridSize;
+  const endY = startY + Math.ceil(canvasHeight / viewTransform.scale / gridSize) * gridSize + gridSize;
+  
+  ctx.beginPath();
+  ctx.strokeStyle = AppConfig.canvas.colors.grid;
+  ctx.lineWidth = 0.5 / viewTransform.scale;
+  
+  // Draw vertical lines
+  for (let x = startX; x <= endX; x += gridSize) {
+    ctx.moveTo(x, startY);
+    ctx.lineTo(x, endY);
+  }
+  
+  // Draw horizontal lines
+  for (let y = startY; y <= endY; y += gridSize) {
+    ctx.moveTo(startX, y);
+    ctx.lineTo(endX, y);
+  }
+  
+  ctx.stroke();
+}

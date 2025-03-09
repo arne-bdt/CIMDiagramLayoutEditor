@@ -75,6 +75,7 @@ export interface InteractionState {
   mode: InteractionMode;
   dragStart: Point2D | null;
   dragEnd: Point2D | null;
+  dragAnchorPoint: string | null; // IRI of the point where dragging started
   panStart: Point2D | null;
   selectedPoints: Set<string>;
   originalPositions: Map<string, Point2D>;

@@ -5,7 +5,10 @@
       selectedDiagram,
       cgmesVersion,
       setCGMESVersion,
-      isLoading
+      isLoading,
+      gridEnabled,
+      gridSnapEnabled,
+      gridSize
     } from '../services/AppState';
     import { CGMESVersion } from '../models/types';
     import { AppConfig } from '../utils/config';
@@ -99,10 +102,35 @@
     </div>
   </div>
   
+  <div class="grid-controls">
+    <div class="checkbox-group">
+      <label>
+        <input type="checkbox" bind:checked={$gridEnabled} />
+        Show Grid
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={$gridSnapEnabled} />
+        Snap to Grid
+      </label>
+    </div>
+    <div class="grid-size">
+      <label>
+        Grid Size:
+        <input 
+          type="number" 
+          bind:value={$gridSize} 
+          min="5" 
+          max="100" 
+          step="5"
+        />
+      </label>
+    </div>
+  </div>
+
   <style>
     .config-panel {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: wrap;      
       gap: var(--spacing-lg);
       margin-bottom: var(--spacing-lg);
     }
@@ -116,5 +144,43 @@
       display: flex;
       gap: var(--spacing-md);
       align-items: flex-end;
+    }
+
+    .grid-controls {
+      display: flex;
+      flex-wrap: wrap;
+      text-wrap: nowrap;
+      gap: var(--spacing-md);
+      align-items: center;
+      border: 1px solid #ddd;
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius);
+      background-color: #f9f9f9;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      gap: var(--spacing-lg);
+    }
+    
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      cursor: pointer;
+    }
+    
+    .grid-size {
+      display: flex;
+      align-items: center;
+      margin-left: var(--spacing-xl);
+    }
+
+    .grid-size input {
+      width: 50px;
+      text-align: right;      
+      padding: 3px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
     }
   </style>
