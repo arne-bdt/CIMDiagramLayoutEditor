@@ -18,14 +18,27 @@
   import { canvasInteraction } from '../actions/canvasInteraction';
   import { resizable } from '../actions/resizable';
   import { resizeCanvas } from '../utils/canvas';
+  import NavigationMap from './NavigationMap.svelte';
   import PolygonCheckbox from '../components/PolygonCheckbox.svelte';
   import PointTooltip from '../components/PointTooltip.svelte';
   import type { Point2D } from '../models/types';
   import type { PointModel } from '../models/PointModel';
   
+  // Props
+  export let showNavigationMap = true;
+  
   // Canvas element reference
   let canvas: HTMLCanvasElement;
   let container: HTMLDivElement;
+  
+  // Canvas size
+  let canvasSize = { width: 0, height: 0 };
+  
+  // Navigation map state
+  let mapVisible = true;
+  
+  // Sync navigation map visibility with prop
+  $: mapVisible = showNavigationMap;
   
   // For polygon checkbox
   let selectedPoint: PointModel | null = null;
@@ -65,6 +78,12 @@
   function handleResize() {
     if (canvas && container) {
       resizeCanvas(canvas, container);
+      
+      // Update canvas size for navigation map
+      canvasSize = {
+        width: canvas.width,
+        height: canvas.height
+      };
       
       // If diagram is loaded, auto-fit it
       if ($diagramData) {
@@ -113,6 +132,27 @@
     }
   }
   
+  // Handle navigation from the map
+  function handleNavigate(event: CustomEvent) {
+    const { x, y } = event.detail;
+    
+    // Calculate new offset to center the view on the selected point
+    const newOffsetX = -x * $viewTransform.scale + canvasSize.width / 2;
+    const newOffsetY = -y * $viewTransform.scale + canvasSize.height / 2;
+    
+    // Update view transform
+    viewTransform.set({
+      scale: $viewTransform.scale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
+    });
+  }
+  
+  // Handle map visibility toggle
+  function handleMapToggle(event: CustomEvent) {
+    mapVisible = event.detail;
+  }
+  
   onMount(() => {
     if (canvas) {
       // Initialize canvas service
@@ -150,6 +190,18 @@
     on:pin={handleTooltipPin}
     on:enter={handleTooltipEnter}
     on:leave={handleTooltipLeave}
+  />
+  
+  <!-- Navigation map in the lower right corner -->
+  <NavigationMap 
+    diagram={$diagramData} 
+    viewTransform={$viewTransform}
+    canvasSize={canvasSize}
+    visible={mapVisible}
+    width={200}
+    height={150}
+    on:navigate={handleNavigate}
+    on:toggle={handleMapToggle}
   />
 </div>
 

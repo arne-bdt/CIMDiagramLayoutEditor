@@ -15,6 +15,9 @@
   // Help component reference
   let helpComponent: Help;
   
+  // Navigation map visibility
+  let showNavigationMap = true;
+  
   onMount(() => {
     console.log('CGMES DiagramLayout Editor mounted');
   });
@@ -45,6 +48,12 @@
       helpComponent.toggle();
     }
   }
+  
+  // Handle navigation map toggle
+  function handleToggleMap(event: CustomEvent) {
+    // Invert the current state when the checkbox is clicked
+    showNavigationMap = !showNavigationMap;
+  }
 </script>
 
 <main>
@@ -52,11 +61,12 @@
   
   <ConfigPanel 
     on:loadDiagrams={handleLoadDiagrams}
-    on:renderDiagram={handleRenderDiagram} 
+    on:renderDiagram={handleRenderDiagram}
+    on:toggleMap={handleToggleMap}
   />
   
   <div class="canvas-container" bind:this={canvasContainer}>
-    <DiagramCanvas />
+    <DiagramCanvas showNavigationMap={showNavigationMap} />
     {#if $isLoading}
       <LoadingIndicator visible={true} />
     {/if}

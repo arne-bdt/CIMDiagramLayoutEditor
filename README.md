@@ -9,6 +9,7 @@ A modern web application for editing CGMES (Common Grid Model Exchange Standard)
 - **CGMES Support**: Compatible with CGMES versions 2.4.15 and 3.0
 - **Real-time Updates**: Direct modification of point positions via SPARQL updates
 - **Advanced Editing**: Add/delete points, create/modify polygons, copy/paste objects
+- **Navigation Map**: Mini-map in corner for navigating large diagrams
 - **Responsive Design**: Adapts to different screen sizes and devices
 
 ## How It Works
@@ -17,7 +18,8 @@ The application connects to a SPARQL endpoint containing CGMES diagram data and 
 
 1. **Load and visualize diagrams**: Queries the SPARQL endpoint for available diagrams and renders them in an interactive canvas
 2. **Modify diagram elements**: Edit point positions, add or remove points, and update object properties
-3. **Persist changes**: Write modifications back to the SPARQL endpoint in real-time
+3. **Navigate large diagrams**: Use the navigation map to quickly move around and identify your current position
+4. **Persist changes**: Write modifications back to the SPARQL endpoint in real-time
 
 ### Technical Architecture
 
@@ -27,6 +29,15 @@ The editor follows a clean architecture with clear separation of concerns:
 - **Services**: Handle application state, SPARQL communication, and canvas rendering
 - **Components**: Render the UI and handle user interactions
 - **Utils**: Provide utility functions for geometry, SPARQL, and canvas operations
+
+### Navigation Map
+
+The editor features a navigation map in the lower right corner that:
+
+- Shows a miniature view of the entire diagram
+- Highlights the currently visible portion of the diagram
+- Allows quick navigation by clicking or dragging within the map
+- Helps maintain context when working with large diagrams
 
 ### SPARQL Implementation
 
@@ -111,6 +122,7 @@ cgmes-editor-svelte/
 ├── src/                      # Source code
 │   ├── components/           # UI Components
 │   │   ├── Help.svelte       # Help component for documentation
+│   │   ├── NavigationMap.svelte # Map component for diagram navigation
 │   │   ├── ui/               # Reusable UI components
 │   ├── models/               # Data models
 │   ├── services/             # Application services
