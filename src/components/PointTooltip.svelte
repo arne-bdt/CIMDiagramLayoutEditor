@@ -235,6 +235,8 @@
     style="left: {screenPosition.x + 20}px; top: {screenPosition.y - 20}px;"
     on:mouseenter={() => dispatch('enter')}
     on:mouseleave={() => dispatch('leave')}
+    role="tooltip"
+    aria-live="polite"
   >
     <div class="tooltip-header">
       <h3>DiagramObject Details</h3>
