@@ -56,10 +56,11 @@ export class CanvasService {
     this.miniMapCanvas = canvas;
     this.miniMapCtx = canvas.getContext('2d');
     
-    // If we already have data, render the minimap
+    // If we already have data, render the minimap with current view transform
     const diagram = get(diagramData);
+    const currentViewTransform = get(viewTransform);
     if (diagram && this.miniMapCtx) {
-      this.renderMiniMap(diagram);
+      this.renderMiniMap(diagram, currentViewTransform);
     }
   }
   
