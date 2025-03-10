@@ -23,6 +23,7 @@ export default defineConfig(({ command }) => {
     esbuild: {
       logOverride: { 'this-is-undefined-in-esm': 'silent' }
     },
+    base: isProduction ? './' : '/',
     build: {
       outDir: 'dist',
       target: 'esnext',
