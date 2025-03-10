@@ -25,7 +25,8 @@ import {
   hideTooltipIfNotPinned,
   showPointTooltip,
   isTooltipPinned,
-  isTooltipHovered
+  isTooltipHovered,
+  hoveredPoint,
 } from '../services/AppState';
 import { AppConfig } from '../utils/config';
 import { get } from 'svelte/store';
@@ -158,6 +159,10 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     // Don't check if tooltip is pinned or being hovered
     if (get(isTooltipPinned) || get(isTooltipHovered)) return;
     
+    // Don't show tooltips when in active interaction modes
+    const currentState = get(interactionState);
+    if (currentState.mode !== InteractionMode.NONE) return;
+    
     const diagram = get(diagramData);
     if (!diagram) return;
     
@@ -183,9 +188,18 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
 
   // Handle mouse down for interactions
   function handleMouseDown(e: MouseEvent) {
-    // If tooltip is pinned, don't start other interactions
-    if (get(isTooltipPinned) || get(isTooltipHovered)) {
-      return;
+    // Check if tooltip is pinned first
+    if (get(isTooltipPinned)) {
+      // If we click outside the tooltip area, close it
+      if (!get(isTooltipHovered)) {
+        hideTooltip();
+      }
+      return; // Skip other interactions when tooltip is pinned
+    }
+    
+    // If tooltip is showing but not pinned, hide it
+    if (get(showPointTooltip) && !get(isTooltipPinned)) {
+      hideTooltip();
     }
     
     const rect = canvas.getBoundingClientRect();
@@ -235,11 +249,6 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
         startPanning({ x: screenX, y: screenY });
       }
     } else {
-      // Hide tooltip if it's showing
-      if (get(showPointTooltip)) {
-        hideTooltipIfNotPinned();
-      }
-      
       // No points selected, start panning
       startPanning({ x: screenX, y: screenY });
     }
@@ -320,4 +329,11 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       lastHoveredPoint = null;
     }
   };
+}
+
+export function hideTooltip(): void {
+  hoveredPoint.set(null);
+  showPointTooltip.set(false);
+  isTooltipPinned.set(false);
+  isTooltipHovered.set(false);
 }

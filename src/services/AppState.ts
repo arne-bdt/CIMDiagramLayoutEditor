@@ -118,6 +118,9 @@ export function startDragging(position: Point2D): void {
   const currentDiagram = get(diagramData);
   if (!currentDiagram) return;
   
+  // Hide tooltip when dragging starts
+  hideTooltip();
+  
   const currentState = get(interactionState);
   
   // Store original positions
@@ -264,6 +267,11 @@ export function endDragging(position: Point2D): PointUpdateData | null {
   
   // Trigger position update event
   positionUpdateEvent.set(result);
+  
+  // Don't show tooltip immediately after dragging - set hoveredPoint to null instead of using lastHoveredPoint
+  setTimeout(() => {
+    hoveredPoint.set(null);
+  }, 100);
   
   return result;
 }

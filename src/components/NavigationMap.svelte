@@ -218,11 +218,7 @@
       width: 100%;
       height: 100%;
     }
-    
-    .toggle-button:hover {
-      background-color: rgba(250, 250, 250, 0.95);
-    }
-    
+        
     .resize-handle {
       position: absolute;
       top: 0;

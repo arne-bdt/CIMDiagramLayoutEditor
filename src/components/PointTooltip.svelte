@@ -232,7 +232,7 @@
   <div 
     class="point-tooltip" 
     bind:this={tooltipElement}
-    style="left: {screenPosition.x + 20}px; top: {screenPosition.y - 20}px;"
+    style="left: {screenPosition.x + 30}px; top: {screenPosition.y - 20}px;"
     on:mouseenter={() => dispatch('enter')}
     on:mouseleave={() => dispatch('leave')}
     role="tooltip"

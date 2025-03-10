@@ -27,7 +27,7 @@ export class CanvasService {
   
   constructor() {
     // Subscribe to gridSize changes to trigger re-render
-    gridSize.subscribe(value => {
+    gridSize.subscribe(() => {
       const diagram = get(diagramData);
       const view = get(viewTransform);
       const interaction = get(interactionState);
