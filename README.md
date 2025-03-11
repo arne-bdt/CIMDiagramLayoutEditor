@@ -2,6 +2,8 @@
 
 A modern web application for editing CGMES (Common Grid Model Exchange Standard) diagram layouts using Svelte and TypeScript. This tool allows power system engineers and grid operators to visualize and modify network diagrams through an interactive web interface.
 
+![Screenshot](./docs/screenshot.png)
+
 ## Features
 
 - **SPARQL Integration**: View and edit diagram layouts directly from SPARQL endpoints
