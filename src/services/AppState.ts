@@ -843,7 +843,14 @@ export async function pasteDiagramObjects(pastePosition: Point2D): Promise<void>
     return;
   }
 
-  var result = JSON.parse(clipboardText);
+  let result;
+  try {
+    result = JSON.parse(clipboardText);
+  } catch (error) {
+    updateStatus('No valid diagram objects in clipboard');
+    return;  
+  }
+  
   if(result == null || result.type !== 'DiagramObject') {
     updateStatus('No valid diagram objects in clipboard');
     return;
