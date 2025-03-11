@@ -26,15 +26,26 @@ export class CanvasService {
   private miniMapCtx: CanvasRenderingContext2D | null = null;
   
   constructor() {
+    // Subscribe to gridEnabled changes to trigger re-render
+    gridEnabled.subscribe(() => {
+      this.reRender();
+    });
     // Subscribe to gridSize changes to trigger re-render
     gridSize.subscribe(() => {
-      const diagram = get(diagramData);
-      const view = get(viewTransform);
-      const interaction = get(interactionState);
-      if (this.canvas && diagram) {
-        this.render(diagram, view, interaction);
-      }
-    });
+      this.reRender();
+    });    
+  }
+
+  /**
+   * Re-render the canvas
+   */
+  reRender() {
+    const diagram = get(diagramData);
+    const view = get(viewTransform);
+    const interaction = get(interactionState);
+    if (this.canvas && diagram) {
+      this.render(diagram, view, interaction);
+    }
   }
 
   /**
