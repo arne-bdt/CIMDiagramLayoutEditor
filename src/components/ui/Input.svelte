@@ -24,7 +24,7 @@
       {value}
       on:input={handleInput}
       on:blur
-      on:focus
+      on:focus 
     />
   </div>
   

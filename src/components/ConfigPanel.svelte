@@ -78,8 +78,8 @@
       options={versionOptions} 
       value={$cgmesVersion} 
       on:change={handleVersionChange} 
-      disabled={disabled}
-    />
+      disabled={disabled}>
+    </RadioGroup>
   </div>
   
   <div class="input-group">
@@ -90,8 +90,8 @@
       value={$selectedDiagram}
       on:change={handleDiagramChange}
       disabled={disabled || $diagramList.length === 0}
-      placeholder="-- Select a diagram --"
-    />
+      placeholder="-- Select a diagram --">
+    </Select>
   </div>
   
   <div class="button-group">
@@ -99,14 +99,14 @@
       id="load-diagrams" 
       label="Load diagram profiles" 
       on:click={handleLoadDiagrams} 
-      disabled={disabled} 
-    />
+      disabled={disabled}>
+    </Button>
     <Button 
       id="render-diagram" 
       label="Render diagram" 
       on:click={handleRenderDiagram} 
-      disabled={disabled || !$selectedDiagram}
-    />
+      disabled={disabled || !$selectedDiagram}>
+    </Button>
   </div>
 </div>
 

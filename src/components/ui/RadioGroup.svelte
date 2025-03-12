@@ -28,7 +28,7 @@
             value={option.value}
             checked={value === option.value}
             {disabled}
-            on:change={handleChange}
+            on:change={handleChange} 
           />
           <label for={`${name}-${option.value}`}>{option.label}</label>
         </div>

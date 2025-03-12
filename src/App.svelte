@@ -50,32 +50,32 @@
   }
   
   // Handle navigation map toggle
-  function handleToggleMap(event: CustomEvent) {
+  function handleToggleMap() {
     // Invert the current state when the checkbox is clicked
     showNavigationMap = !showNavigationMap;
   }
 </script>
 
 <main>
-  <Header on:showHelp={toggleHelp} />
+  <Header on:showHelp={toggleHelp} ></Header>
   
   <ConfigPanel 
     on:loadDiagrams={handleLoadDiagrams}
     on:renderDiagram={handleRenderDiagram}
     on:toggleMap={handleToggleMap}
-  />
+  ></ConfigPanel>
   
   <div class="canvas-container" bind:this={canvasContainer}>
-    <DiagramCanvas showNavigationMap={showNavigationMap} />
+    <DiagramCanvas showNavigationMap={showNavigationMap} ></DiagramCanvas>
     {#if $isLoading}
-      <LoadingIndicator visible={true} />
+      <LoadingIndicator visible={true} ></LoadingIndicator>
     {/if}
   </div>
   
-  <StatusBar status={$statusText} coordinates={$coordinates} />
+  <StatusBar status={$statusText} coordinates={$coordinates} ></StatusBar>
   
   <!-- Help component -->
-  <Help bind:this={helpComponent} />
+  <Help bind:this={helpComponent} ></Help>
 </main>
 
 <style>

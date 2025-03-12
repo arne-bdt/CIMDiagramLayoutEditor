@@ -17,8 +17,8 @@
     <Button 
       label="Help" 
       on:click={showHelp} 
-      primary={false}
-    />
+      primary={false} >
+    </Button>
   </div>
 </header>
   

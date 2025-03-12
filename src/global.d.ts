@@ -1,4 +1,4 @@
-/// <reference types="svelte" />
+/// <reference types="svelte" ></reference>
 
 interface Window {
     diagramControllerInstance?: any;

@@ -87,7 +87,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window on:keydown={handleKeyDown} ></svelte:window>
 
 {#if visible}
   <!-- Use dialog element for proper accessibility -->
@@ -125,8 +125,8 @@
     <button 
       class="backdrop-button" 
       on:click={close} 
-      aria-label="Close help dialog"
-    />
+      aria-label="Close help dialog">
+    </button>
   </dialog>
 {/if}
 

@@ -177,8 +177,8 @@
       object={selectedPoint.parentObject}
       point={checkboxPosition}
       viewTransform={$viewTransform}
-      visible={true}
-    />
+      visible={true}>
+    </PolygonCheckbox>
   {/if}
   
   <!-- Point tooltip that appears on hover -->
@@ -189,8 +189,8 @@
     on:close={handleTooltipClose}
     on:pin={handleTooltipPin}
     on:enter={handleTooltipEnter}
-    on:leave={handleTooltipLeave}
-  />
+    on:leave={handleTooltipLeave}>
+  </PointTooltip>
   
   <!-- Navigation map in the lower right corner -->
   <NavigationMap 
@@ -201,8 +201,8 @@
     width={200}
     height={150}
     on:navigate={handleNavigate}
-    on:toggle={handleMapToggle}
-  />
+    on:toggle={handleMapToggle}>
+  </NavigationMap>
 </div>
 
 <style>
