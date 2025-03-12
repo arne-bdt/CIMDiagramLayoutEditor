@@ -14,6 +14,89 @@ A modern web application for editing CGMES (Common Grid Model Exchange Standard)
 - **Navigation Map**: Mini-map in corner for navigating large diagrams
 - **Responsive Design**: Adapts to different screen sizes and devices
 
+## Diagram Layout Profile
+
+CGMES defines a diagram layout profile that represents the layout of a diagram in a power system model. The profile includes the following classes:
+
+```mermaid
+classDiagram
+
+class Diagram {
+    +orientation: OrientationKind
+    +x1InitialView: Float [0..1]
+    +x2InitialView: Float [0..1]
+    +y1InitialView: Float [0..1]
+    +y2InitialView: Float [0..1]
+}
+
+class DiagramObject {
+    +drawingOrder: Integer [0..1]
+    +isPolygon: Boolean [0..1]
+    +offsetX: Float [0..1]
+    +offsetY: Float [0..1]
+    +rotation: Float [0..1]
+}
+
+class TextDiagramObject {
+    +text: String
+}
+
+class DiagramObjectPoint {
+    +sequenceNumber: Integer [0..1]
+    +xPosition: Float
+    +yPosition: Float
+    +zPosition: Float [0..1]
+}
+
+class IdentifiedObject {
+    naming attributes."
+
+    <<abstract>>
+    +description: String [0..1]
+    +mRID: String
+    +name: String
+}
+
+class DiagramObjectStyle
+
+class VisibilityLayer {
+    +drawingOrder: Integer [0..1]
+}
+
+class DiagramStyle
+
+class DiagramObjectGluePoint
+
+
+class OrientationKind {
+    <<enumeration>>
+    positive
+    negative
+}
+
+
+IdentifiedObject <|-- DiagramObjectStyle
+IdentifiedObject <|-- VisibilityLayer
+IdentifiedObject <|-- DiagramStyle
+IdentifiedObject <|-- DiagramObject
+IdentifiedObject <|-- Diagram
+
+DiagramObject <|-- TextDiagramObject
+
+%% ========================
+%% Associations
+%% ========================
+DiagramObject "0..*" --> "0..1" IdentifiedObject : +IdentifiedObject
+DiagramObject "0..*" --> "0..1" DiagramObjectStyle : +DiagramObjectStyle
+DiagramObject "0..*" --> "1" Diagram : +Diagram
+
+Diagram "0..*" --> "1" DiagramStyle : +DiagramStyle
+
+
+DiagramObjectPoint "0..*" --> "1" DiagramObject : +DiagramObject
+DiagramObjectPoint "2..*" --> "0..1" DiagramObjectGluePoint : +DiagramObjectGluePoint
+```
+
 ## How It Works
 
 The application connects to a SPARQL endpoint containing CGMES diagram data and allows users to:
