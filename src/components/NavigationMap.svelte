@@ -1,24 +1,30 @@
 <script lang="ts">
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import type { DiagramModel } from '../models/DiagramModel';
     import type { ViewTransform } from '../models/types';
     import { canvasService } from '../services/CanvasService';
     
     // Props
-    export let diagram: DiagramModel | null = null;
-    export let viewTransform: ViewTransform;
-    export let canvasSize: { width: number; height: number } = { width: 0, height: 0 };
-    export let width = 200;
-    export let height = 150;
-    export let visible = true;
+    let { 
+      navigate,
+      diagram = null,
+      width = 200,
+      height = 150,
+      visible = true,
+     } : {
+      navigate: (x: number, y: number) => void,
+      diagram: DiagramModel | null,
+      viewTransform: ViewTransform,
+      canvasSize: { width: number; height: number },
+      width: number,
+      height: number,
+      visible: boolean
+     } = $props();
+    
     
     // Local state
     let mapCanvas: HTMLCanvasElement;
     let isDragging = false;
-    let isHovering = false;
-    
-    // Create an event dispatcher
-    const dispatch = createEventDispatcher();
     
     // Resize handlers
     let isResizing = false;
@@ -41,27 +47,25 @@
       }
     });
     
-    // Watch for changes in diagram
-    $: if (diagram && mapCanvas) {
-      // The canvas service will handle the rendering
-      canvasService.setMiniMapCanvas(mapCanvas);
-    }
     
-    // Watch for changes in viewTransform
-    $: if (viewTransform && mapCanvas) {
-      // The canvas service will handle the rendering
-    }
-    
-    // Watch for changes in map size
-    $: if (width && height && mapCanvas) {
-      mapCanvas.width = width;
-      mapCanvas.height = height;
-      
-      // The canvasService will handle the rendering
-      if (diagram) {
+    $effect(() => {
+
+      // Watch for changes in diagram
+      if (diagram && mapCanvas) {
         canvasService.setMiniMapCanvas(mapCanvas);
       }
-    }
+
+      // Watch for changes in map size
+      if (width && height && mapCanvas) {
+        mapCanvas.width = width;
+        mapCanvas.height = height;
+        
+        // The canvasService will handle the rendering
+        if (diagram) {
+          canvasService.setMiniMapCanvas(mapCanvas);
+        }
+      }
+    });
     
     // Handle mouse events
     function handleMouseDown(event: MouseEvent): void {
@@ -80,9 +84,7 @@
     
     function handleMouseMove(event: MouseEvent): void {
       if (!diagram) return;
-      
-      isHovering = true;
-      
+            
       // Only handle movement if dragging
       if (isDragging) {
         // Get mouse position relative to the map
@@ -104,13 +106,8 @@
     
     function handleMouseLeave(): void {
       isDragging = false;
-      isHovering = false;
       // Reset cursor
       mapCanvas.style.cursor = 'default';
-    }
-    
-    function handleMouseEnter(): void {
-      isHovering = true;
     }
     
     // Navigate to point on map
@@ -129,7 +126,7 @@
       const worldY = bounds.minY + (mapY - padding) / scale;
       
       // Dispatch the navigation event
-      dispatch('navigate', { x: worldX, y: worldY });
+      navigate(worldX, worldY);
     }
     
     // Resize handlers
@@ -169,16 +166,15 @@
         bind:this={mapCanvas}
         width={width}
         height={height}
-        on:mousedown={handleMouseDown}
-        on:mousemove={handleMouseMove}
-        on:mouseup={handleMouseUp}
-        on:mouseleave={handleMouseLeave}
-        on:mouseenter={handleMouseEnter}
+        onmousedown={handleMouseDown}
+        onmousemove={handleMouseMove}
+        onmouseup={handleMouseUp}
+        onmouseleave={handleMouseLeave}
       ></canvas>
       
       <button 
         class="resize-handle" 
-        on:mousedown={startResize} 
+        onmousedown={startResize} 
         aria-label="Resize navigation map"
       ></button>
     </div>

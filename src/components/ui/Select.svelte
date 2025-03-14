@@ -1,20 +1,30 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
     
-    export let id: string;
-    export let label: string;
-    export let options: { value: string; label: string }[] = [];
-    export let value: string = '';
-    export let disabled: boolean = false;
-    export let placeholder: string = '';
-    export let required: boolean = false;
-    
-    const dispatch = createEventDispatcher();
+     // Props
+     let { 
+        id,
+        label,
+        options = [],
+        value = '',
+        disabled,
+        placeholder,
+        required,
+        change } 
+        : {
+        id: string,
+        label: string,
+        options: { value: string; label: string }[],
+        value: string,
+        disabled: boolean,
+        placeholder: string,
+        required: boolean,
+        change: (value: string) => void
+     } = $props();
     
     function handleChange(event: Event) {
       const target = event.target as HTMLSelectElement;
       value = target.value;
-      dispatch('change', { value });
+      change(value);
     }
   </script>
   
@@ -24,7 +34,7 @@
       {id}
       {disabled}
       {required}
-      on:change={handleChange}
+      onchange={handleChange}
       value={value}
     >
       {#if placeholder}

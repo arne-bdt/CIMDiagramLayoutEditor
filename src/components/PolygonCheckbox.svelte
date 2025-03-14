@@ -54,7 +54,7 @@
           type="checkbox" 
           id={checkboxId} 
           checked={isPolygon} 
-          on:change={handleChange}
+          onchange={handleChange}
         />
         Polygon
       </label>

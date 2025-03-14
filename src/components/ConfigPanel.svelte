@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher} from 'svelte';
   import { 
     diagramList,
     selectedDiagram,
@@ -15,48 +14,54 @@
   import Select from './ui/Select.svelte';
   import RadioGroup from './ui/RadioGroup.svelte';
   import Input from './ui/Input.svelte';
-  
-  // Event dispatcher
-  const dispatch = createEventDispatcher();
+  let { 
+    onLoadDiagrams, 
+    onRenderDiagram, 
+    onToggleMap } 
+    : {
+    onLoadDiagrams: (endpoint: string) => void,
+    onRenderDiagram: (diagramIri: string) => void,
+    onToggleMap: (show: boolean) => void,    
+    } = $props();
   
   // Local state
-  let endpoint = AppConfig.defaultEndpoint;
-  let showNavigationMap = true;
-  
-  // Listen for loading state to disable controls
-  $: disabled = $isLoading;
-  
+  let endpoint = $state(AppConfig.defaultEndpoint);
+  let showNavigationMap = $state(true);
+
+  let loading = $state(true);
+  isLoading.subscribe(value => loading = value);
+    
   // Options for CGMES version radio buttons
   const versionOptions = [
     { value: CGMESVersion.V2_4_15, label: '2.4.15' },
     { value: CGMESVersion.V3_0, label: '3.0' }
   ];
-  
+    
   // Handle CGMES version change
-  function handleVersionChange(event: CustomEvent) {
-    setCGMESVersion(event.detail.value as CGMESVersion);
+  function handleVersionChange(version: string) {
+    setCGMESVersion(version as CGMESVersion);
   }
   
   // Handle load diagrams button click
   function handleLoadDiagrams() {
-    dispatch('loadDiagrams', { endpoint });
+    onLoadDiagrams(endpoint);
   }
   
   // Handle render diagram button click
   function handleRenderDiagram() {
-    dispatch('renderDiagram', { diagramIri: $selectedDiagram });
+    onRenderDiagram($selectedDiagram);        
   }
   
   // Handle diagram selection change
-  function handleDiagramChange(event: CustomEvent) {
-    selectedDiagram.set(event.detail.value);
+  function handleDiagramChange(diagramIri: string) {
+    selectedDiagram.set(diagramIri);
   }
   
   // Handle navigation map toggle
   function toggleNavigationMap() {
     // Just dispatch the current state - don't invert here
     // Let the parent component handle the state
-    dispatch('toggleMap', showNavigationMap);
+    onToggleMap(showNavigationMap);
   }
 </script>
 
@@ -66,7 +71,7 @@
       id="endpoint" 
       label="SPARQL Endpoint URL:" 
       bind:value={endpoint} 
-      disabled={disabled}
+      disabled={loading}
     />
   </div>
   
@@ -76,8 +81,8 @@
       name="cgmes_version" 
       options={versionOptions} 
       value={$cgmesVersion} 
-      on:change={handleVersionChange} 
-      disabled={disabled}>
+      change={handleVersionChange} 
+      disabled={loading}>
     </RadioGroup>
   </div>
   
@@ -87,8 +92,9 @@
       label="Select diagram:" 
       options={$diagramList.map(d => ({ value: d.iri, label: d.name }))}
       value={$selectedDiagram}
-      on:change={handleDiagramChange}
-      disabled={disabled || $diagramList.length === 0}
+      required={true}
+      change={handleDiagramChange}
+      disabled={loading || $diagramList.length === 0}
       placeholder="-- Select a diagram --">
     </Select>
   </div>
@@ -98,13 +104,13 @@
       id="load-diagrams" 
       label="Load diagram profiles" 
       on:click={handleLoadDiagrams} 
-      disabled={disabled}>
+      disabled={loading}>
     </Button>
     <Button 
       id="render-diagram" 
       label="Render diagram" 
       on:click={handleRenderDiagram} 
-      disabled={disabled || !$selectedDiagram}>
+      disabled={loading || !$selectedDiagram}>
     </Button>
   </div>
 </div>
@@ -128,7 +134,7 @@
       />
     </label>
     <label class="show-map-label">
-      <input type="checkbox" bind:checked={showNavigationMap} on:change={toggleNavigationMap} />
+      <input type="checkbox" bind:checked={showNavigationMap} onchange={toggleNavigationMap} />
       Show Map
     </label>
     <span class="grid-hint">Hold ALT to disable grid snapping</span>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { PointModel } from '../models/PointModel';
   import type { ViewTransform, Point2D } from '../models/types';
   import { worldToScreen } from '../utils/geometry';
@@ -8,37 +8,53 @@
   import { get } from 'svelte/store';
   
   // Props
-  export let point: PointModel | null = null;
-  export let viewTransform: ViewTransform;
-  export let visible: boolean = false;
+  let { 
+    point = null, 
+    viewTransform, 
+    visible = false,
+    onClose,
+    onPin,
+    onEnter,
+    onLeave}
+    : {
+    point: PointModel | null,
+    viewTransform: ViewTransform,
+    visible: boolean,
+    onClose: () => void,
+    onPin: (isPinned: boolean) => void,
+    onEnter: () => void,
+    onLeave: () => void
+    } = $props();
   
+
   // Local state
-  let tooltipElement: HTMLDivElement;
-  let pointData: any = null;
-  let screenPosition: Point2D = { x: 0, y: 0 };
-  let isDataLoading: boolean = false;
-  let loadError: string | null = null;
-  let isPinned: boolean = false;
+  let pointData: any = $state(null);
+  let screenPosition: Point2D =  $state({ x: 0, y: 0 });
+  let isDataLoading: boolean =  $state(false);
+  let loadError: string | null =  $state(null);
+  let isPinned: boolean =  $state(false);
   
-  const dispatch = createEventDispatcher();
-  
-  // Update tooltip position when point changes
-  $: if (point && viewTransform) {
-    updatePosition();
-    if (visible && !pointData && !isDataLoading) {
+    
+  $effect(() => { 
+    
+    // Update tooltip position when point changes
+    if (point && viewTransform) {
+      updatePosition();
+      if (visible && !pointData && !isDataLoading) {
+        loadPointData();
+      }
+    }
+
+    // Watch for changes in visibility
+    if (visible && point && !pointData && !isDataLoading) {
       loadPointData();
     }
-  }
-  
-  // Watch for changes in visibility
-  $: if (visible && point && !pointData && !isDataLoading) {
-    loadPointData();
-  }
-  
-  // Watch for changes in the view transform
-  $: if (viewTransform && point) {
-    updatePosition();
-  }
+
+    // Watch for changes in the view transform
+    if (viewTransform && point) {
+      updatePosition();
+    }
+  });
   
   // Update position based on current point and view transform
   function updatePosition() {
@@ -198,12 +214,12 @@
   function closeTooltip() {
     isPinned = false;
     visible = false;
-    dispatch('close');
+    onClose();
   }
   
   function togglePin() {
     isPinned = !isPinned;
-    dispatch('pin', isPinned);
+    onPin(isPinned);
   }
   
   // Clean up function when component unmounts or visibility changes
@@ -213,9 +229,11 @@
   }
   
   // When visibility changes to false, reset the tooltip data
-  $: if (!visible && pointData) {
-    resetTooltip();
-  }
+  $effect(() => {
+    if (!visible && pointData) {
+      resetTooltip();
+    }
+  });
   
   onMount(() => {
     // Add event listener for ESC key
@@ -230,11 +248,10 @@
 
 {#if visible && point}
   <div 
-    class="point-tooltip" 
-    bind:this={tooltipElement}
+    class="point-tooltip"     
     style="left: {screenPosition.x + 30}px; top: {screenPosition.y - 20}px;"
-    on:mouseenter={() => dispatch('enter')}
-    on:mouseleave={() => dispatch('leave')}
+    onmouseenter={() => onEnter()}
+    onmouseleave={() => onLeave()}
     role="tooltip"
     aria-live="polite"
   >
@@ -243,12 +260,12 @@
       <div class="tooltip-controls">
         <button 
           class="pin-button" 
-          title={isPinned ? "Unpin tooltip" : "Pin tooltip"} 
-          on:click={togglePin}
+          title={isPinned ? "Unpin tooltip" : "Pin tooltip"}           
+          onclick={togglePin}
         >
           <span class={isPinned ? "pinned" : "unpinned"}>📌</span>
         </button>
-        <button class="close-button" title="Close tooltip" on:click={closeTooltip}>×</button>
+        <button class="close-button" title="Close tooltip" onclick={closeTooltip}>×</button>
       </div>
     </div>
     

@@ -112,8 +112,8 @@
   }
   
   // Handle tooltip pin state change
-  function handleTooltipPin(event: CustomEvent) {
-    setTooltipPinned(event.detail);
+  function handleTooltipPin(pinned: boolean) {
+    setTooltipPinned(pinned);
   }
 
   // Handle tooltip mouse events
@@ -133,8 +133,7 @@
   }
   
   // Handle navigation from the map
-  function handleNavigate(event: CustomEvent) {
-    const { x, y } = event.detail;
+  function handleNavigate(x: number, y: number) {
     
     // Calculate new offset to center the view on the selected point
     const newOffsetX = -x * $viewTransform.scale + canvasSize.width / 2;
@@ -146,11 +145,6 @@
       offsetX: newOffsetX,
       offsetY: newOffsetY
     });
-  }
-  
-  // Handle map visibility toggle
-  function handleMapToggle(event: CustomEvent) {
-    mapVisible = event.detail;
   }
   
   onMount(() => {
@@ -186,10 +180,10 @@
     point={$hoveredPoint}
     viewTransform={$viewTransform}
     visible={$showPointTooltip}
-    on:close={handleTooltipClose}
-    on:pin={handleTooltipPin}
-    on:enter={handleTooltipEnter}
-    on:leave={handleTooltipLeave}>
+    onClose={handleTooltipClose}
+    onPin={handleTooltipPin}
+    onEnter={handleTooltipEnter}
+    onLeave={handleTooltipLeave}>
   </PointTooltip>
   
   <!-- Navigation map in the lower right corner -->
@@ -200,8 +194,7 @@
     visible={mapVisible}
     width={200}
     height={150}
-    on:navigate={handleNavigate}
-    on:toggle={handleMapToggle}>
+    navigate={handleNavigate}>
   </NavigationMap>
 </div>
 

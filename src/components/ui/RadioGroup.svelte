@@ -1,18 +1,25 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
-    
-    export let name: string;
-    export let legend: string;
-    export let options: { value: string; label: string }[] = [];
-    export let value: string = '';
-    export let disabled: boolean = false;
-    
-    const dispatch = createEventDispatcher();
+    // Props
+    let { 
+      name,
+      legend,
+      options = [],
+      value = '',
+      disabled,
+      change } 
+      : {
+      name: string,
+      legend: string,
+      options: { value: string; label: string }[],
+      value: string,
+      disabled: boolean,
+      change: (value: string) => void
+    } = $props();
     
     function handleChange(event: Event) {
       const target = event.target as HTMLInputElement;
       value = target.value;
-      dispatch('change', { value });
+      change(value);
     }
   </script>
   
@@ -28,7 +35,7 @@
             value={option.value}
             checked={value === option.value}
             {disabled}
-            on:change={handleChange} 
+            onchange={handleChange} 
           />
           <label for={`${name}-${option.value}`}>{option.label}</label>
         </div>

@@ -23,8 +23,7 @@
   });
 
   // Handle load diagram profiles
-  const handleLoadDiagrams = async (event: CustomEvent) => {
-    const endpoint = event.detail.endpoint;
+  const handleLoadDiagrams = async (endpoint: string) => {
     try {
       await diagramService.loadDiagramProfiles(endpoint);
     } catch (error) {
@@ -33,8 +32,7 @@
   };
 
   // Handle render diagram
-  const handleRenderDiagram = async (event: CustomEvent) => {
-    const diagramIri = event.detail.diagramIri;
+  const handleRenderDiagram = async (diagramIri: string) => {
     try {
       await diagramService.loadDiagramLayout(diagramIri);
     } catch (error) {
@@ -50,19 +48,19 @@
   }
   
   // Handle navigation map toggle
-  function handleToggleMap() {
+  function handleToggleMap(show: boolean) {
     // Invert the current state when the checkbox is clicked
-    showNavigationMap = !showNavigationMap;
+    showNavigationMap = show;
   }
 </script>
 
 <main>
-  <Header on:showHelp={toggleHelp} ></Header>
+  <Header showHelp={toggleHelp} ></Header>
   
   <ConfigPanel 
-    on:loadDiagrams={handleLoadDiagrams}
-    on:renderDiagram={handleRenderDiagram}
-    on:toggleMap={handleToggleMap}
+    onLoadDiagrams={handleLoadDiagrams}
+    onRenderDiagram={handleRenderDiagram}
+    onToggleMap={handleToggleMap}
   ></ConfigPanel>
   
   <div class="canvas-container" bind:this={canvasContainer}>

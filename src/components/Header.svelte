@@ -1,14 +1,10 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import Button from './ui/Button.svelte';
-  
-  // Event dispatcher
-  const dispatch = createEventDispatcher();
-  
-  // Handle help button click
-  function showHelp() {
-    dispatch('showHelp');
-  }
+  let { 
+    showHelp } 
+    : { 
+    showHelp: () => void }
+   = $props();  
 </script>
   
 <header>
