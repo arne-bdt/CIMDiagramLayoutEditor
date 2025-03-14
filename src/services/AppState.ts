@@ -48,7 +48,8 @@ const initialInteractionState: InteractionState = {
   dragAnchorPoint: null,
   panStart: null,
   selectedPoints: new Set<string>(),
-  originalPositions: new Map<string, Point2D>()
+  originalPositions: new Map<string, Point2D>(),
+  altKeyPressed: false
 };
 
 // Interaction state
@@ -114,7 +115,7 @@ export function togglePointSelection(pointIri: string): void {
   });
 }
 
-export function startDragging(position: Point2D): void {
+export function startDragging(position: Point2D, altKeyPressed: boolean = false): void {
   const currentDiagram = get(diagramData);
   if (!currentDiagram) return;
   
@@ -155,7 +156,8 @@ export function startDragging(position: Point2D): void {
     dragStart: position,
     dragEnd: position,
     dragAnchorPoint,
-    originalPositions
+    originalPositions,
+    altKeyPressed // Store the ALT key state for snap-to-grid control
   }));
 }
 
@@ -170,7 +172,7 @@ function snapToGrid(value: number, gridSize: number): number {
   return Math.round(value / gridSize) * gridSize;
 }
 
-export function updateDragging(position: Point2D): void {
+export function updateDragging(position: Point2D, altKeyPressed: boolean = false): void {
   const currentState = get(interactionState);
   const currentDiagram = get(diagramData);
   
@@ -184,11 +186,19 @@ export function updateDragging(position: Point2D): void {
   let dx = position.x - currentState.dragStart.x;
   let dy = position.y - currentState.dragStart.y;
   
-  // Check if grid snapping is enabled
-  const isSnapEnabled = get(gridSnapEnabled);
+  // Update the ALT key state in the interaction state
+  interactionState.update(state => ({
+    ...state,
+    altKeyPressed
+  }));
+  
+  // Get current grid size
   const currentGridSize = get(gridSize);
   
-  // If we have an anchor point (the first dragged point) and snapping is enabled,
+  // By default, snap to grid. Only disable snapping when ALT is pressed
+  const isSnapEnabled = !altKeyPressed;
+  
+  // If we have an anchor point and snapping is enabled (ALT key is NOT pressed),
   // adjust the deltas to ensure the anchor point snaps to the grid
   if (isSnapEnabled && currentState.dragAnchorPoint) {
     const originalAnchor = currentState.originalPositions.get(currentState.dragAnchorPoint);
@@ -1188,7 +1198,6 @@ export async function deleteSelectedDiagramObjects(): Promise<void> {
 
 // Grid state
 export const gridEnabled = writable<boolean>(AppConfig.grid.enabled);
-export const gridSnapEnabled = writable<boolean>(AppConfig.grid.snapEnabled);
 export const gridSize = writable<number>(AppConfig.grid.size); 
 
 /**

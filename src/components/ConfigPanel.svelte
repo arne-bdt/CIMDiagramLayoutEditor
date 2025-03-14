@@ -7,7 +7,6 @@
     setCGMESVersion,
     isLoading,
     gridEnabled,
-    gridSnapEnabled,
     gridSize
   } from '../services/AppState';
   import { CGMESVersion } from '../models/types';
@@ -116,10 +115,6 @@
       <input type="checkbox" bind:checked={$gridEnabled} />
       Show Grid
     </label>
-    <label>
-      <input type="checkbox" bind:checked={$gridSnapEnabled} />
-      Snap to Grid
-    </label>
   </div>
   <div class="grid-size">
     <label>
@@ -136,6 +131,7 @@
       <input type="checkbox" bind:checked={showNavigationMap} on:change={toggleNavigationMap} />
       Show Map
     </label>
+    <span class="grid-hint">Hold ALT to disable grid snapping</span>
   </div>
 </div>
 
@@ -202,5 +198,13 @@
     align-items: center;
     gap: var(--spacing-xs);
     cursor: pointer;
+  }
+
+  .grid-hint {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-style: italic;
+    color: #666;
+    white-space: nowrap;
   }
 </style>

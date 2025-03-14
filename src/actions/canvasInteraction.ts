@@ -141,7 +141,8 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       } else if (currentState.mode === InteractionMode.SELECTING) {
         updateSelecting(worldPos);
       } else if (currentState.mode === InteractionMode.DRAGGING) {
-        updateDragging(worldPos);
+        // Update ALT key state and pass to updateDragging
+        updateDragging(worldPos, e.altKey);
       }
       return;
     }
@@ -234,8 +235,8 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       const clickedPoint = diagram.findPointNear(worldPos, selectionRadius);
       
       if (clickedPoint && currentState.selectedPoints.has(clickedPoint.iri)) {
-        // Start dragging selected points
-        startDragging(worldPos);
+        // Start dragging selected points, track ALT key state
+        startDragging(worldPos, e.altKey);
       } else {
         // Not clicking on a selected point
         const anyPoint = diagram.findPointNear(worldPos, selectionRadius);

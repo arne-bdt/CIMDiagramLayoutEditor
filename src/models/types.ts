@@ -79,6 +79,7 @@ export interface InteractionState {
   panStart: Point2D | null;
   selectedPoints: Set<string>;
   originalPositions: Map<string, Point2D>;
+  altKeyPressed: boolean; // Track ALT key state for disabling snap-to-grid
 }
 
 /**
