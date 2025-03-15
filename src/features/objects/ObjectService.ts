@@ -8,7 +8,6 @@ import type { DiagramObjectModel } from '../../core/models/DiagramModel';
 import { diagramData, cimNamespace, selectedDiagram } from '../diagram/DiagramState';
 import { setLoading, updateStatus } from '../ui/UIState';
 import { interactionState, clearSelection } from '../interaction/InteractionState';
-import { viewTransform } from '../canvas/CanvasState';
 import type { DiagramService } from '../diagram/DiagramService';
 import type { PointQueryBuilder } from '@/queries/PointQueryBuilder';
 import { v4 as uuidv4 } from 'uuid';
@@ -243,9 +242,6 @@ export class ObjectService {
         throw new Error('No diagram selected');
       }
       
-      // Preserve current view transform state
-      const currentViewTransform = get(viewTransform);
-      
       // Call the SparqlService to clone objects
       // (Note: This assumes SparqlService has a cloneObjectsWithOffset method)
       const newObjPointIris = await this.cloneObjectsWithOffset(
@@ -259,12 +255,7 @@ export class ObjectService {
       // Reload the diagram to include the new objects
       // In a real implementation, you might want to incrementally update the diagram
       // model instead of reloading everything
-      await this.diagramService.loadDiagramLayout(diagramIri);
-      
-      // Restore view transform
-      setTimeout(() => {
-        viewTransform.set(currentViewTransform);
-      }, 100);
+      await this.diagramService.reloadDiagram();
       
       // Select the newly created points
       if (newObjPointIris && newObjPointIris.pointIris) {
@@ -279,11 +270,7 @@ export class ObjectService {
       console.error('Error pasting diagram objects:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
 
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }
+      await this.diagramService.reloadDiagram();
     } finally {
       setLoading(false);
     }
@@ -334,10 +321,7 @@ export class ObjectService {
     setLoading(true);
     updateStatus(`Deleting ${objectIris.size} diagram objects...`);
     
-    try {
-      // Preserve current view transform
-      const currentViewTransform = get(viewTransform);
-      
+    try {      
       // Get the current namespace
       const namespace = get(cimNamespace);
       
@@ -350,16 +334,7 @@ export class ObjectService {
       // Execute delete query
       await this.sparqlService.executeUpdate(deleteQuery);
       
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-        
-        // Restore viewport
-        setTimeout(() => {
-          viewTransform.set(currentViewTransform);
-        }, 100);
-      }
+      await this.diagramService.reloadDiagram();
       
       updateStatus(`Deleted ${objectIris.size} diagram objects`);
       
@@ -369,11 +344,7 @@ export class ObjectService {
       console.error('Error deleting diagram objects:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
 
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }
+      await this.diagramService.reloadDiagram();
     } finally {
       setLoading(false);
     }
@@ -517,11 +488,7 @@ export class ObjectService {
     console.error('Error rotating objects:', error);
     updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
     
-    // Reload the diagram
-    const diagramIri = get(selectedDiagram);
-    if (diagramIri) {
-      await this.diagramService.loadDiagramLayout(diagramIri);
-    }
+    await this.diagramService.reloadDiagram();
   }
 
   /**

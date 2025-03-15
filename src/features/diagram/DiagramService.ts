@@ -11,7 +11,8 @@ import { AppConfig } from '../../core/config/AppConfig';
 import { 
   diagramData, 
   diagramList, 
-  cimNamespace
+  cimNamespace,
+  selectedDiagram
 } from './DiagramState';
 import { viewTransform, resetViewTransform } from '../canvas/CanvasState';
 import { clearSelection } from '../interaction/InteractionState';
@@ -72,9 +73,17 @@ export class DiagramService {
   }
   
   /**
+   * Reload the current diagram without resetting the view
+   */
+  async reloadDiagram(): Promise<DiagramModel> {
+    const diagramIri = get(selectedDiagram);
+    return await this.loadDiagramLayout(diagramIri, false);
+  }
+
+  /**
    * Load and process diagram layout data
    */
-  async loadDiagramLayout(diagramIri: string): Promise<DiagramModel> {
+  async loadDiagramLayout(diagramIri: string, resetView: boolean = true): Promise<DiagramModel> {
     if (!diagramIri) {
       throw new Error('Please select a diagram');
     }
@@ -83,8 +92,10 @@ export class DiagramService {
     updateStatus('Loading diagram layout data...');
     
     try {
-      // Reset view and selection
-      resetViewTransform();
+      // Only reset view if specified (default is true for backward compatibility)
+      if (resetView) {
+        resetViewTransform();
+      }
       clearSelection();
       
       // Get current namespace

@@ -13,7 +13,6 @@
     hideTooltipIfNotPinned 
   } from '@/features/tooltips/TooltipState';
   import { diagramData } from '../../diagram/DiagramState';
-  import { diagramService } from '../../../services/DiagramService';
   import { canvasInteraction } from '../../interaction/actions/canvasInteraction';
   import { resizable } from '../../interaction/actions/resizable';
   import { resizeCanvas } from '../../../utils/canvas';
@@ -87,7 +86,7 @@
       
       // If diagram is loaded, auto-fit it
       if ($diagramData) {
-        diagramService.autoFitDiagram({
+        serviceRegistry.diagramService.autoFitDiagram({
           width: canvas.width,
           height: canvas.height
         });

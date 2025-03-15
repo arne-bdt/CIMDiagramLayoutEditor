@@ -7,7 +7,7 @@ import { SparqlService } from '../../services/SparqlService';
 import { PointQueryBuilder } from '../../queries/PointQueryBuilder';
 
 // Import state from feature modules
-import { diagramData, cimNamespace, selectedDiagram } from '../diagram/DiagramState';
+import { diagramData, cimNamespace } from '../diagram/DiagramState';
 import { setLoading, updateStatus } from '../ui/UIState';
 import { clearSelection, togglePointSelection } from '../interaction/InteractionState';
 import type { ObjectQueryBuilder } from '@/queries/ObjectQueryBuilder';
@@ -114,11 +114,7 @@ export class PointService {
       console.error('Error adding new point:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }
+      await this.diagramService.reloadDiagram();
       return false;
     } finally {
       setLoading(false);
@@ -231,11 +227,7 @@ export class PointService {
       console.error('Error deleting point:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }
+      await this.diagramService.reloadDiagram();
       return false;
     } finally {
       setLoading(false);
@@ -269,11 +261,7 @@ export class PointService {
       console.error('Error updating point positions:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }      
+      await this.diagramService.reloadDiagram();     
       return false;
     } finally {
       setLoading(false);
@@ -312,11 +300,7 @@ export class PointService {
       console.error('Error updating point positions:', error);
       updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
-      }
+      await this.diagramService.reloadDiagram();
       return false; 
     } finally {
       setLoading(false);
