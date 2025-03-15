@@ -1,16 +1,21 @@
 <script lang="ts">
-  import Header from './components/Header.svelte';
-  import ConfigPanel from './components/ConfigPanel.svelte';
-  import DiagramCanvas from './components/DiagramCanvas.svelte';
-  import StatusBar from './components/StatusBar.svelte';
-  import LoadingIndicator from './components/LoadingIndicator.svelte';
-  import Help from './components/Help.svelte';
-  import { isLoading, statusText, coordinates } from './services/AppState';
   import { onMount } from 'svelte';
-  import { diagramService } from './services/DiagramService';
+  import { serviceRegistry } from './services/ServiceRegistry';
+  
+  // Import state from feature modules
+  import { isLoading, statusText, coordinates } from './features/ui/UIState';
+  
+  // Import components from feature modules
+  import Header from '../src/features/ui/components/Header.svelte';
+  import ConfigPanel from '../src/features/diagram/components/ConfigPanel.svelte';
+  import DiagramCanvas from '../src/features/canvas/components/DiagramCanvas.svelte';
+  import StatusBar from '../src/features/ui/components/StatusBar.svelte';
+  import LoadingIndicator from '../src/features/ui/components/LoadingIndicator.svelte';
+  import Help from './features/help/components/Help.svelte';
 
-  // Canvas reference
-  let canvasContainer: HTMLDivElement;
+  // Services
+  const diagramService = serviceRegistry.diagramService;
+  
   
   // Help component reference
   let helpComponent: Help;
@@ -63,7 +68,7 @@
     onToggleMap={handleToggleMap}
   ></ConfigPanel>
   
-  <div class="canvas-container" bind:this={canvasContainer}>
+  <div class="canvas-container">
     <DiagramCanvas showNavigationMap={showNavigationMap} ></DiagramCanvas>
     {#if $isLoading}
       <LoadingIndicator visible={true} ></LoadingIndicator>

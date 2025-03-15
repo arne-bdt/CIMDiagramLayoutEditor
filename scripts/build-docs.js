@@ -44,7 +44,7 @@ try {
       toclevels: 3,
       sectlinks: '',
       experimental: '',
-      'favicon': '/favicon.ico',
+      'favicon': '/favicon.png',
       'stylesheet': '',
       'linkcss': false
     }

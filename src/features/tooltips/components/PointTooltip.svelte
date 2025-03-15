@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { PointModel } from '../models/PointModel';
-  import type { ViewTransform, Point2D } from '../models/types';
-  import { worldToScreen } from '../utils/geometry';
-  import { sparqlService } from '../services/SparqlService';
-  import { cimNamespace } from '../services/AppState';
-  import { get } from 'svelte/store';
+  import type { PointModel } from '../../../core/models/PointModel';
+  import type { ViewTransform, Point2D } from '../../../core/models/types';
+  import { worldToScreen } from '../../../utils/geometry';
+  import { serviceRegistry } from '../../../services/ServiceRegistry';
   
   // Props
   let { 
@@ -33,6 +31,8 @@
   let isDataLoading: boolean =  $state(false);
   let loadError: string | null =  $state(null);
   let isPinned: boolean =  $state(false);
+
+  const toolTipService = serviceRegistry.tooltipService;
   
     
   $effect(() => { 
@@ -69,141 +69,13 @@
     isDataLoading = true;
     loadError = null;
     
-    try {
-      const namespace = get(cimNamespace);
-      
-      // Build a query to fetch detailed information for this specific point
-      const query = buildPointDetailsQuery(point.iri, namespace);
-      
-      // Execute the query
-      const result = await sparqlService.executeQuery(query);
-      
-      // Process the result
-      if (result.results.bindings.length > 0) {
-        const binding = result.results.bindings[0];
-        
-        pointData = {
-          diagramObject: {
-            iri: binding.diagramObject?.value || '',
-            name: binding.objectName?.value || 'Unknown',
-            rotation: binding.rotation?.value !== undefined ? parseFloat(binding.rotation.value) : null,
-            offsetX: binding.offsetX?.value !== undefined ? parseFloat(binding.offsetX.value) : null,
-            offsetY: binding.offsetY?.value !== undefined ? parseFloat(binding.offsetY.value) : null,
-            style: binding.style ? {
-              iri: binding.style.value || '',
-              name: binding.styleName?.value || 'Unknown'
-            } : null
-          },
-          point: {
-            iri: point.iri,
-            name: binding.pointName?.value || 'Unknown',
-            sequenceNumber: point.sequenceNumber,
-            x: point.x,
-            y: point.y,
-            z: binding.zPosition?.value !== undefined ? parseFloat(binding.zPosition.value) : null
-          }
-        };
-      } else {
-        // Fallback with basic information if detailed query fails
-        pointData = {
-          diagramObject: {
-            iri: point.parentObject?.iri || '',
-            name: 'Unknown',
-            rotation: null,
-            offsetX: null,
-            offsetY: null,
-            style: null
-          },
-          point: {
-            iri: point.iri,
-            name: 'Unknown',
-            sequenceNumber: point.sequenceNumber,
-            x: point.x,
-            y: point.y,
-            z: null
-          }
-        };
-      }
-    } catch (error) {
-      console.error('Error loading point details:', error);
-      loadError = error instanceof Error ? error.message : 'Failed to load point details';
-      
-      // Set basic fallback data
-      pointData = {
-        diagramObject: {
-          iri: point.parentObject?.iri || '',
-          name: 'Unknown',
-          rotation: null,
-          offsetX: null,
-          offsetY: null,
-          style: null
-        },
-        point: {
-          iri: point.iri,
-          name: 'Unknown',
-          sequenceNumber: point.sequenceNumber,
-          x: point.x,
-          y: point.y,
-          z: null
-        }
-      };
+  
+    try {     
+      pointData = await toolTipService.loadPointDetails(point);
     } finally {
       isDataLoading = false;
     }
   }
-  
-  // Build a query to fetch detailed point information
-  function buildPointDetailsQuery(pointIri: string, cimNamespace: string): string {
-    return `
-      PREFIX cim: <${cimNamespace}>
-      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-      
-      SELECT ?diagramObject ?objectName ?pointName ?zPosition ?offsetX ?offsetY ?rotation ?style ?styleName
-      WHERE {
-        <${pointIri}> cim:DiagramObjectPoint.DiagramObject ?diagramObject .
-        
-        # Optional DiagramObject name
-        OPTIONAL {
-          ?diagramObject cim:IdentifiedObject.name ?objectName .
-        }
-        
-        # Optional DiagramObjectPoint name
-        OPTIONAL {
-          <${pointIri}> cim:IdentifiedObject.name ?pointName .
-        }
-        
-        # Optional z position
-        OPTIONAL {
-          <${pointIri}> cim:DiagramObjectPoint.zPosition ?zPosition .
-        }
-        
-        # Optional offset properties
-        OPTIONAL {
-          ?diagramObject cim:DiagramObject.offsetX ?offsetX .
-        }
-        
-        OPTIONAL {
-          ?diagramObject cim:DiagramObject.offsetY ?offsetY .
-        }
-        
-        # Optional rotation property
-        OPTIONAL {
-          ?diagramObject cim:DiagramObject.rotation ?rotation .
-        }
-        
-        # Optional style reference
-        OPTIONAL {
-          ?diagramObject cim:DiagramObject.DiagramObjectStyle ?style .
-          OPTIONAL {
-            ?style cim:IdentifiedObject.name ?styleName .
-          }
-        }
-      }
-      LIMIT 1
-    `;
-  }
-  
   // Handle keydown events to close tooltip on ESC
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape' && visible) {

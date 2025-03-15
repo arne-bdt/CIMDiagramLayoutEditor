@@ -1,5 +1,21 @@
+import { get } from 'svelte/store';
+import type { Point2D } from '../../../core/models/types';
+import { InteractionMode } from '../../../core/models/types';
+import type { PointModel } from '../../../core/models/PointModel';
+import { AppConfig } from '../../../core/config/AppConfig';
+import { screenToWorld } from '../../../utils/geometry';
+import { findClosestLineSegment } from '../../../utils/geometry';
+import { serviceRegistry } from '../../../services/ServiceRegistry';
+
+// Import from UI state
+import { updateCoordinates } from '../../ui/UIState';
+
+// Import from canvas state
+import { viewTransform, zoom as zoomViewport } from '../../canvas/CanvasState';
+
+// Import from interaction state
 import { 
-  updateCoordinates,
+  interactionState,
   togglePointSelection,
   startSelecting,
   updateSelecting,
@@ -10,31 +26,25 @@ import {
   startPanning,
   updatePanning,
   endPanning,
-  zoom,
-  clearSelection,
-  diagramData,
-  viewTransform,
-  interactionState,
-  addNewPointToLine,
-  deletePointFromLine,
-  copySelectedDiagramObjects,
-  pasteDiagramObjects,
-  deleteSelectedDiagramObjects,
-  rotateSelectedObjects,
+  clearSelection
+} from '../InteractionState';
+
+// Import from diagram state
+import { diagramData } from '../../diagram/DiagramState';
+
+// Import from tooltip state
+import {
   showTooltipForPoint,
   hideTooltipIfNotPinned,
   showPointTooltip,
   isTooltipPinned,
   isTooltipHovered,
-  hoveredPoint,
-} from '../services/AppState';
-import { AppConfig } from '../utils/config';
-import { get } from 'svelte/store';
-import { screenToWorld } from '../utils/geometry';
-import { findClosestLineSegment } from '../utils/geometry';
-import type { Point2D } from '@/models/types';
-import { InteractionMode } from '../models/types';
-import type { PointModel } from '../models/PointModel';
+  hideTooltip,
+} from '../../tooltips/TooltipState';
+
+// Services
+const pointService = serviceRegistry.pointService;
+const objectService = serviceRegistry.objectService;
 
 /**
  * Svelte action for canvas interactions
@@ -288,7 +298,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    zoom({ x: mouseX, y: mouseY }, e.deltaY);
+    zoomViewport({ x: mouseX, y: mouseY }, e.deltaY);
     
     // When zooming, recheck point hover
     const worldPos = screenToWorld(mouseX, mouseY, get(viewTransform));
@@ -304,6 +314,52 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       hideTooltipIfNotPinned();
       lastHoveredPoint = null;
     }
+  }
+
+  // Feature functions that were previously in AppState.ts
+  // Now delegate to appropriate services
+
+  /**
+   * Add a new point to a line in the diagram
+   */
+  async function addNewPointToLine(object, position, insertIndex) {
+    pointService.addNewPointToLine(object, position, insertIndex);
+  }
+
+  /**
+   * Delete a point from a line in the diagram
+   */
+  async function deletePointFromLine(point) {
+    pointService.deletePointFromLine(point);
+  }
+
+  /**
+   * Copy selected diagram objects to clipboard
+   */
+  function copySelectedDiagramObjects() {
+    // This would be implemented in ObjectService in the new architecture
+    objectService.copySelectedDiagramObjects();
+  }
+
+  /**
+   * Paste copied diagram objects at a specific position
+   */
+  function pasteDiagramObjects(position) {
+    objectService.pasteDiagramObjects(position);
+  }
+
+  /**
+   * Delete selected diagram objects
+   */
+  function deleteSelectedDiagramObjects() {
+    objectService.deleteSelectedDiagramObjects();
+  }
+
+  /**
+   * Rotate selected objects around the center of selection
+   */
+  function rotateSelectedObjects(degrees) {
+    objectService.rotateSelectedObjects(degrees);
   }
   
   // Attach event listeners
@@ -330,11 +386,4 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
       lastHoveredPoint = null;
     }
   };
-}
-
-export function hideTooltip(): void {
-  hoveredPoint.set(null);
-  showPointTooltip.set(false);
-  isTooltipPinned.set(false);
-  isTooltipHovered.set(false);
 }

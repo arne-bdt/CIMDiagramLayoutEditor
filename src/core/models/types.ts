@@ -26,7 +26,7 @@ export interface Point2D {
 /**
  * Point movement delta
  */
-export interface PointDelta {
+export interface DeltaVector {
   dx: number;
   dy: number;
 }
@@ -122,13 +122,13 @@ export interface SparqlDiagramData {
 }
 
 /**
- * Point data structure for update
+ * Point data structure for updated positions by vector
  */
-export interface PointUpdateData {
-  points: string[];
-  dx: number;
-  dy: number;
+export interface MovePointsByDeltaData {
+  pointIris: string[];
+  deltaVector: DeltaVector; 
 }
+
 
 // Export all types as a namespace to avoid circular dependencies
 export default {

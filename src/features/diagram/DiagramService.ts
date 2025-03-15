@@ -1,29 +1,30 @@
-import { diagramData, diagramList, cimNamespace } from '../features/diagram/DiagramState';
-import { setLoading, updateStatus } from '../features/ui/UIState';
-import { resetViewTransform, viewTransform } from '../features/canvas/CanvasState';
-import { clearSelection } from '../features/interaction/InteractionState';
-
-import { sparqlService } from './SparqlService';
-import { DiagramModel } from '../core/models/DiagramModel';
-import type { CanvasSize, SparqlDiagramData } from '../core/models/types';
-import { 
-  buildDiagramsQuery, 
-  buildDiagramLayoutQuery,
-  isValidEndpoint
-} from './utils/sparql-utils';
 import { get } from 'svelte/store';
-import { addPaddingToBounds, calculateFitScale } from '../utils/geometry';
-import { AppConfig } from '../core/config/AppConfig';
+import type { CanvasSize, SparqlDiagramData } from '../../core/models/types';
+import { DiagramModel } from '../../core/models/DiagramModel';
+import { SparqlService } from '../../services/SparqlService';
+import { DiagramQueryBuilder } from '../../queries/DiagramQueryBuilder';
+import { isValidEndpoint } from '../../services/utils/sparql-utils';
+import { addPaddingToBounds, calculateFitScale } from '../../utils/geometry';
+import { AppConfig } from '../../core/config/AppConfig';
 
-/**
- * Service for handling diagram operations
- */
-class DiagramService {
+// Import state from feature modules
+import { 
+  diagramData, 
+  diagramList, 
+  cimNamespace
+} from './DiagramState';
+import { viewTransform, resetViewTransform } from '../canvas/CanvasState';
+import { clearSelection } from '../interaction/InteractionState';
+import { setLoading, updateStatus } from '../ui/UIState';
+
+export class DiagramService {
+  constructor(
+    private sparqlService: SparqlService,
+    private diagramQueryBuilder: DiagramQueryBuilder
+  ) {}
+
   /**
    * Load all available diagrams
-   * 
-   * @param endpoint - SPARQL endpoint URL
-   * @returns Array of diagram objects
    */
   async loadDiagramProfiles(endpoint: string): Promise<SparqlDiagramData[]> {
     if (!isValidEndpoint(endpoint)) {
@@ -35,14 +36,14 @@ class DiagramService {
     
     try {
       // Set endpoint in SPARQL service
-      sparqlService.setEndpoint(endpoint);
+      this.sparqlService.setEndpoint(endpoint);
       
       // Get current namespace
       const namespace = get(cimNamespace);
       
       // Build and execute query
-      const query = buildDiagramsQuery(namespace);
-      const response = await sparqlService.executeQuery(query);
+      const query = this.diagramQueryBuilder.buildDiagramsQuery(namespace);
+      const response = await this.sparqlService.executeQuery(query);
       
       if (response.results.bindings.length === 0) {
         updateStatus('No diagrams found');
@@ -51,7 +52,7 @@ class DiagramService {
       }
       
       // Process results
-      const diagrams = response.results.bindings.map(binding => ({
+      const diagrams = response.results.bindings.map((binding) => ({
         iri: binding.diagram.value,
         name: binding.name ? binding.name.value : binding.diagram.value
       }));
@@ -72,9 +73,6 @@ class DiagramService {
   
   /**
    * Load and process diagram layout data
-   * 
-   * @param diagramIri - Diagram IRI
-   * @returns Processed diagram model
    */
   async loadDiagramLayout(diagramIri: string): Promise<DiagramModel> {
     if (!diagramIri) {
@@ -93,8 +91,8 @@ class DiagramService {
       const namespace = get(cimNamespace);
       
       // Build and execute query
-      const query = buildDiagramLayoutQuery(diagramIri, namespace);
-      const response = await sparqlService.executeQuery(query);
+      const query = this.diagramQueryBuilder.buildDiagramLayoutQuery(diagramIri, namespace);
+      const response = await this.sparqlService.executeQuery(query);
       
       // Process diagram data
       const diagram = DiagramModel.fromSparqlResults(response);
@@ -116,8 +114,6 @@ class DiagramService {
   
   /**
    * Auto-fit the diagram to the canvas
-   * 
-   * @param canvasSize - Canvas size
    */
   autoFitDiagram(canvasSize: CanvasSize): void {
     const diagram = get(diagramData);
@@ -149,6 +145,3 @@ class DiagramService {
     });
   }
 }
-
-// Create singleton instance for use throughout the application
-export const diagramService = new DiagramService();

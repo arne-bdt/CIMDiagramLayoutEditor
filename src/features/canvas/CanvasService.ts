@@ -1,20 +1,22 @@
-import type { DiagramModel } from '../models/DiagramModel';
+import type { DiagramModel } from '../../core/models/DiagramModel';
 import type { 
   InteractionState, 
   ViewTransform,
   Bounds
-} from '../models/types';
-import { AppConfig } from '../utils/config';
-import { getDynamicSize } from '../utils/geometry';
+} from '../../core/models/types';
+import { AppConfig } from '../../core/config/AppConfig';
+import { getDynamicSize } from '../../utils/geometry';
 import { 
   renderSelectionRectangle, 
   renderLineOrPolygon,
   renderPoint,
   renderTextObject,
   renderGrid
-} from '../utils/canvas';
+} from '../../utils/canvas';
 import { get } from 'svelte/store';
-import { gridEnabled, gridSize, diagramData, viewTransform, interactionState } from './AppState';
+import { gridEnabled, gridSize, viewTransform } from '../canvas/CanvasState';
+import { diagramData } from '../diagram/DiagramState';
+import { interactionState } from '../interaction/InteractionState';
 
 /**
  * Service for canvas rendering

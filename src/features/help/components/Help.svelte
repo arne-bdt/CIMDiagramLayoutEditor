@@ -70,7 +70,9 @@
     if (helpContent && helpContentDiv) {
       // Use setTimeout to ensure DOM is updated
       setTimeout(() => {
-        helpContentDiv.innerHTML = helpContent;
+        if(helpContentDiv) {
+          helpContentDiv.innerHTML = helpContent;
+        }
       }, 0);
     } 
     // Otherwise load content if needed

@@ -3,17 +3,22 @@
     diagramList,
     selectedDiagram,
     cgmesVersion,
-    setCGMESVersion,
-    isLoading,
-    gridEnabled,
-    gridSize
-  } from '../services/AppState';
-  import { CGMESVersion } from '../models/types';
-  import { AppConfig } from '../utils/config';
-  import Button from './ui/Button.svelte';
-  import Select from './ui/Select.svelte';
-  import RadioGroup from './ui/RadioGroup.svelte';
-  import Input from './ui/Input.svelte';
+    setCGMESVersion
+  } from '../DiagramState';
+  import { isLoading, updateStatus } from '../../ui/UIState';
+  import { gridEnabled, gridSize } from '../../canvas/CanvasState';
+  import { CGMESVersion } from '../../../core/models/types';
+  import { AppConfig } from '../../../core/config/AppConfig';
+  import { serviceRegistry } from '../../../services/ServiceRegistry';
+  import Button from '../../ui/base-components/Button.svelte';
+  import Select from '../../ui/base-components/Select.svelte';
+  import RadioGroup from '../../ui/base-components/RadioGroup.svelte';
+  import Input from '../../ui/base-components/Input.svelte';
+  
+  // Get service
+  const diagramService = serviceRegistry.diagramService;
+  
+  // Props
   let { 
     onLoadDiagrams, 
     onRenderDiagram, 
@@ -43,13 +48,23 @@
   }
   
   // Handle load diagrams button click
-  function handleLoadDiagrams() {
-    onLoadDiagrams(endpoint);
+  async function handleLoadDiagrams() {
+    try {
+      await diagramService.loadDiagramProfiles(endpoint);
+      onLoadDiagrams(endpoint);
+    } catch (error) {
+      updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   
   // Handle render diagram button click
-  function handleRenderDiagram() {
-    onRenderDiagram($selectedDiagram);        
+  async function handleRenderDiagram() {
+    try {
+      await diagramService.loadDiagramLayout($selectedDiagram);
+      onRenderDiagram($selectedDiagram);
+    } catch (error) {
+      updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   
   // Handle diagram selection change

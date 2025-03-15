@@ -1,28 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { viewTransform } from '../CanvasState';
+  import { canvasService } from '../CanvasService';
+  import { interactionState, positionUpdateEvent } from '@/features/interaction/InteractionState';
   import { 
-    diagramData, 
-    viewTransform, 
-    interactionState,
-    positionUpdateEvent,
-    hoveredPoint,
-    showPointTooltip,
-    isTooltipPinned,
-    setTooltipPinned,
-    hideTooltip,
-    setTooltipHovered,
-    hideTooltipIfNotPinned
-  } from '../services/AppState';
-  import { canvasService } from '../services/CanvasService';
-  import { diagramService } from '../services/DiagramService';
-  import { canvasInteraction } from '../actions/canvasInteraction';
-  import { resizable } from '../actions/resizable';
-  import { resizeCanvas } from '../utils/canvas';
-  import NavigationMap from './NavigationMap.svelte';
-  import PolygonCheckbox from '../components/PolygonCheckbox.svelte';
-  import PointTooltip from '../components/PointTooltip.svelte';
-  import type { Point2D } from '../models/types';
-  import type { PointModel } from '../models/PointModel';
+    hoveredPoint, 
+    showPointTooltip, 
+    isTooltipPinned, 
+    setTooltipPinned, 
+    hideTooltip, 
+    setTooltipHovered, 
+    hideTooltipIfNotPinned 
+  } from '@/features/tooltips/TooltipState';
+  import { diagramData } from '../../diagram/DiagramState';
+  import { diagramService } from '../../../services/DiagramService';
+  import { canvasInteraction } from '../../interaction/actions/canvasInteraction';
+  import { resizable } from '../../interaction/actions/resizable';
+  import { resizeCanvas } from '../../../utils/canvas';
+  import NavigationMap from '../../navigation/components/NavigationMap.svelte';
+  import PolygonCheckbox from '../../objects/components/PolygonCheckbox.svelte';
+  import PointTooltip from '../../tooltips/components/PointTooltip.svelte';
+  import type { MovePointsByDeltaData, Point2D } from '../../../core/models/types';
+  import type { PointModel } from '../../../core/models/PointModel';
+  import { serviceRegistry } from '@/services/ServiceRegistry';  
   
   // Props
   export let showNavigationMap = true;
@@ -96,10 +96,10 @@
   }
   
   // Handle position update event
-  async function handlePositionUpdate(updateData: any) {
+  async function handlePositionUpdate(updateData: MovePointsByDeltaData) {
     if (updateData) {
       try {
-        await diagramService.updatePointPositions(updateData);
+        await serviceRegistry.pointService.updatePointPositions(updateData);
       } catch (error) {
         console.error('Failed to update point positions:', error);
       }

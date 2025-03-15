@@ -1,16 +1,16 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import type { Point2D, ViewTransform } from '../models/types';
-    import type { DiagramObjectModel } from '../models/DiagramModel';
-    import { worldToScreen } from '../utils/geometry';
-    import { togglePolygonProperty } from '../services/AppState';
+    import type { Point2D, ViewTransform } from '../../../core/models/types';
+    import type { DiagramObjectModel } from '../../../core/models/DiagramModel';
+    import { worldToScreen } from '../../../utils/geometry';
+    import { serviceRegistry } from '../../../services/ServiceRegistry';
     
     // Props
     export let object: DiagramObjectModel;
     export let point: Point2D;
     export let viewTransform: ViewTransform;
     export let visible: boolean = false;
-    
+
     // State
     let screenPosition: Point2D = { x: 0, y: 0 };
     let isPolygon: boolean = object?.isPolygon || false;
@@ -36,7 +36,9 @@
     function handleChange(event: Event) {
       const target = event.target as HTMLInputElement;
       const newValue = target.checked;
-      togglePolygonProperty(object, newValue);
+    
+      const objectService = serviceRegistry.objectService;
+      objectService.togglePolygonProperty(object, newValue);
     }
     
     onMount(() => {
