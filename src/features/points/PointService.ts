@@ -162,7 +162,7 @@ export class PointService {
       let needsPolygonUpdate = false;
 
       // If we have fewer than 3 points and it was a polygon, remove the polygon property      
-      if(object.isPolygon && object.points.length <= 3) {
+      if(object.isPolygon && object.points.length < 3) {
         object.isPolygon = false;
         needsPolygonUpdate = true;
       }

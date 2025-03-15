@@ -172,52 +172,94 @@ export function findClosestLineSegment(
   position: Point2D;
   distance: number; 
 } | null {
-  let closestDistance = maxDistance * maxDistance;
-  let result = null;
+  const maxDistanceSquared = maxDistance * maxDistance;
+  let closestResult = null;
+  let closestDistSquared = maxDistanceSquared;
   
-  // Check all objects with at least 2 points
+  // Process each object in the diagram
   for (const object of diagram.objects) {
     if (object.points.length < 2) continue;
     
-    // Check each line segment
-    for (let i = 0; i < object.points.length - 1; i++) {
-      const p1 = { x: object.points[i].x, y: object.points[i].y };
-      const p2 = { x: object.points[i+1].x, y: object.points[i+1].y };
-      
-      const { distanceSquared: dist, projectedPoint } = pointToLineDistanceSquared(point, p1, p2);
-      
-      if (dist < closestDistance) {
-        closestDistance = dist;
-        result = {
-          object,
-          index: i + 1, // Insert position (after p1)
-          position: projectedPoint,
-          distance: Math.sqrt(dist)
-        };
-      }
+    // Find closest segment from regular segments
+    const regularSegmentResult = findClosestRegularSegment(
+      point, object, closestDistSquared
+    );
+    
+    if (regularSegmentResult) {
+      closestDistSquared = regularSegmentResult.distanceSquared;
+      closestResult = regularSegmentResult.result;
     }
     
-    // Check last-to-first segment if polygon
+    // Check closing segment if polygon
     if (object.isPolygon && object.points.length > 2) {
-      const p1 = { 
-        x: object.points[object.points.length - 1].x, 
-        y: object.points[object.points.length - 1].y 
-      };
-      const p2 = { x: object.points[0].x, y: object.points[0].y };
+      const polygonClosingResult = findClosestPolygonClosingSegment(
+        point, object, closestDistSquared
+      );
       
-      const { distanceSquared: dist, projectedPoint } = pointToLineDistanceSquared(point, p1, p2);
-      
-      if (dist < closestDistance) {
-        closestDistance = dist;
-        result = {
-          object,
-          index: 0, // Insert at beginning (for visual continuity in polygon)
-          position: projectedPoint,
-          distance: Math.sqrt(dist)
-        };
+      if (polygonClosingResult) {
+        closestResult = polygonClosingResult.result;
       }
     }
   }
   
-  return result;
+  return closestResult;
+}
+
+function findClosestRegularSegment(
+  point: Point2D, 
+  object : DiagramObjectModel, 
+  maxDistSquared: number) {
+  let closestDist = maxDistSquared;
+  let result = null;
+  
+  // Check each segment in the object
+  for (let i = 0; i < object.points.length - 1; i++) {
+    const segmentStart = { x: object.points[i].x, y: object.points[i].y };
+    const segmentEnd = { x: object.points[i+1].x, y: object.points[i+1].y };
+    
+    const { distanceSquared, projectedPoint } = pointToLineDistanceSquared(
+      point, segmentStart, segmentEnd
+    );
+    
+    if (distanceSquared < closestDist) {
+      closestDist = distanceSquared;
+      result = {
+        object,
+        index: i + 1, // Insert position (after segmentStart)
+        position: projectedPoint,
+        distance: Math.sqrt(distanceSquared)
+      };
+    }
+  }
+  
+  return result ? { distanceSquared: closestDist, result } : null;
+}
+
+function findClosestPolygonClosingSegment(
+  point: Point2D, 
+  object : DiagramObjectModel, 
+  maxDistSquared: number) {
+  const lastPoint = object.points[object.points.length - 1];
+  const firstPoint = object.points[0];
+  
+  const segmentStart = { x: lastPoint.x, y: lastPoint.y };
+  const segmentEnd = { x: firstPoint.x, y: firstPoint.y };
+  
+  const { distanceSquared, projectedPoint } = pointToLineDistanceSquared(
+    point, segmentStart, segmentEnd
+  );
+  
+  if (distanceSquared < maxDistSquared) {
+    return {
+      distanceSquared,
+      result: {
+        object,
+        index: 0, // Insert at beginning for polygon closing segment
+        position: projectedPoint,
+        distance: Math.sqrt(distanceSquared)
+      }
+    };
+  }
+  
+  return null;
 }

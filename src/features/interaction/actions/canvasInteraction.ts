@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import type { Point2D } from '../../../core/models/types';
+import type { InteractionState, Point2D } from '../../../core/models/types';
 import { InteractionMode } from '../../../core/models/types';
 import type { PointModel } from '../../../core/models/PointModel';
 import { AppConfig } from '../../../core/config/AppConfig';
@@ -41,6 +41,7 @@ import {
   isTooltipHovered,
   hideTooltip,
 } from '../../tooltips/TooltipState';
+import type { DiagramObjectModel } from '@/core/models/DiagramModel';
 
 // Services
 const pointService = serviceRegistry.pointService;
@@ -127,42 +128,54 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
 
   // Handle mouse movement for hover effects
   function handleMouseMove(e: MouseEvent) {
-    // If we've scheduled a hover check already, no need for another one
     if (hoverCheckScheduled) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
-    
-    const currentTransform = get(viewTransform);
-    const worldPos = screenToWorld(screenX, screenY, currentTransform);
+  
+    const { screenPos, worldPos } = getCoordinatesFromEvent(e);
     currentMouseWorldPos = worldPos;
-    
-    // Update coordinates display
     updateCoordinates(worldPos);
     
     const currentState = get(interactionState);
     
-    // While in an active interaction mode, don't change the tooltip
-    if (currentState.mode !== InteractionMode.NONE) {
-      // Process the regular interaction handlers
-      if (currentState.mode === InteractionMode.PANNING && currentState.panStart) {
-        updatePanning({ x: screenX, y: screenY });
-      } else if (currentState.mode === InteractionMode.SELECTING) {
-        updateSelecting(worldPos);
-      } else if (currentState.mode === InteractionMode.DRAGGING) {
-        // Update ALT key state and pass to updateDragging
-        updateDragging(worldPos, e.altKey);
-      }
+    if (handleActiveInteractionIfNeeded(currentState, screenPos, worldPos, e)) {
       return;
     }
     
-    // Schedule a hover check after a short delay
+    // Only schedule hover check when not in active interaction
     hoverCheckScheduled = true;
     requestAnimationFrame(() => {
       checkForPointHover(worldPos);
       hoverCheckScheduled = false;
     });
+  }
+
+  function getCoordinatesFromEvent(e: MouseEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const screenPos : Point2D = { 
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    const worldPos = screenToWorld(screenPos.x, screenPos.y, get(viewTransform));
+    return { screenPos, worldPos };
+  }
+  
+  function handleActiveInteractionIfNeeded(
+    state : InteractionState, 
+    screenPos: Point2D, 
+    worldPos: Point2D, 
+    e: MouseEvent) {
+    if (state.mode === InteractionMode.NONE) {
+      return false;
+    }
+    
+    if (state.mode === InteractionMode.PANNING && state.panStart) {
+      updatePanning(screenPos);
+    } else if (state.mode === InteractionMode.SELECTING) {
+      updateSelecting(worldPos);
+    } else if (state.mode === InteractionMode.DRAGGING) {
+      updateDragging(worldPos, e.altKey);
+    }
+    
+    return true;
   }
   
   // Check if the cursor is hovering over a point
@@ -229,10 +242,10 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
     const selectionRadius = AppConfig.canvas.selectionThreshold * 
       Math.pow(currentTransform.scale, -0.3);
     
-    if (e.ctrlKey) {
-      // Check if clicking on a point
-      const clickedPoint = diagram.findPointNear(worldPos, selectionRadius);
+    // Check if clicking on a point
+    const clickedPoint = diagram.findPointNear(worldPos, selectionRadius);
       
+    if (e.ctrlKey) {      
       if (clickedPoint) {
         // Toggle point selection
         togglePointSelection(clickedPoint.iri);
@@ -241,9 +254,8 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
         startSelecting(worldPos);
       }
     } else if (currentState.selectedPoints.size > 0) {
-      // Check if clicking on a selected point for dragging
-      const clickedPoint = diagram.findPointNear(worldPos, selectionRadius);
       
+      // Check if clicking on a selected point for dragging
       if (clickedPoint && currentState.selectedPoints.has(clickedPoint.iri)) {
         // Start dragging selected points, track ALT key state
         startDragging(worldPos, e.altKey);
@@ -254,8 +266,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
         if (!anyPoint) {
           // Clicked on empty space, clear selection
           clearSelection();
-        }
-        
+        }        
         // Start panning
         startPanning({ x: screenX, y: screenY });
       }
@@ -322,14 +333,17 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   /**
    * Add a new point to a line in the diagram
    */
-  async function addNewPointToLine(object, position, insertIndex) {
+  async function addNewPointToLine( 
+      object: DiagramObjectModel,
+      position: Point2D,
+      insertIndex: number) {
     pointService.addNewPointToLine(object, position, insertIndex);
   }
 
   /**
    * Delete a point from a line in the diagram
    */
-  async function deletePointFromLine(point) {
+  async function deletePointFromLine(point: PointModel) {
     pointService.deletePointFromLine(point);
   }
 
@@ -344,7 +358,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   /**
    * Paste copied diagram objects at a specific position
    */
-  function pasteDiagramObjects(position) {
+  function pasteDiagramObjects(position: Point2D) {
     objectService.pasteDiagramObjects(position);
   }
 
@@ -358,7 +372,7 @@ export function canvasInteraction(canvas: HTMLCanvasElement) {
   /**
    * Rotate selected objects around the center of selection
    */
-  function rotateSelectedObjects(degrees) {
+  function rotateSelectedObjects(degrees: number) {
     objectService.rotateSelectedObjects(degrees);
   }
   

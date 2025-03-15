@@ -1,9 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
-import type { InteractionState, Point2D, MovePointsByDeltaData } from '../../core/models/types';
+import type { InteractionState, Point2D, MovePointsByDeltaData, DeltaVector } from '../../core/models/types';
 import { InteractionMode } from '../../core/models/types';
 import { viewTransform, gridSize } from '../canvas/CanvasState';
 import { diagramData } from '../diagram/DiagramState';
 import { AppConfig } from '../../core/config/AppConfig';
+import type { DiagramModel } from '@/core/models/DiagramModel';
 
 // Define initial interaction state
 const initialInteractionState: InteractionState = {
@@ -106,67 +107,78 @@ function snapToGrid(value: number, gridSize: number): number {
 export function updateDragging(position: Point2D, altKeyPressed: boolean = false): void {
   const currentState = get(interactionState);
   const currentDiagram = get(diagramData);
+
+  if(!currentDiagram) return;
   
-  if (!currentState || !currentDiagram || 
-      currentState.mode !== InteractionMode.DRAGGING || 
-      !currentState.dragStart) {
+  if (!isValidDraggingState(currentState, currentDiagram)) {
     return;
   }
   
-  // Calculate base delta
-  let dx = position.x - currentState.dragStart.x;
-  let dy = position.y - currentState.dragStart.y;
+  // Update ALT key state
+  interactionState.update(state => ({...state, altKeyPressed}));
   
-  // Update the ALT key state in the interaction state
-  interactionState.update(state => ({
-    ...state,
-    altKeyPressed
-  }));
-    
-  // By default, snap to grid. Only disable snapping when ALT is pressed
-  const isSnapEnabled = !altKeyPressed;
+  // Calculate movement with possible grid snapping
+  const { dx, dy } = calculateDragMovement(position, currentState, altKeyPressed);
   
-  // If we have an anchor point and snapping is enabled (ALT key is NOT pressed),
-  // adjust the deltas to ensure the anchor point snaps to the grid
-  if (isSnapEnabled && currentState.dragAnchorPoint) {
-    const originalAnchor = currentState.originalPositions.get(currentState.dragAnchorPoint);
+  // Apply movement to selected points
+  updateSelectedPointPositions(currentDiagram, currentState, dx, dy);
+  
+  // Update drag end position
+  interactionState.update(state => ({...state, dragEnd: position}));
+  
+  // Trigger diagram update
+  diagramData.set(currentDiagram);
+}
+
+function isValidDraggingState(state : InteractionState, diagram : DiagramModel) : boolean {
+  return state && 
+         diagram && 
+         state.mode === InteractionMode.DRAGGING && 
+         state.dragStart != null;
+}
+
+function calculateDragMovement(position: Point2D, state: InteractionState, altKeyPressed: boolean) : DeltaVector {
+  if(!state || !state.dragStart) return { dx: 0, dy: 0 };
+  
+  // Calculate base movement  
+  let dx = position.x - state.dragStart.x;
+  let dy = position.y - state.dragStart.y;
+  
+  // Skip snapping if ALT is pressed
+  if (!altKeyPressed && state.dragAnchorPoint) {
+    const gridSnapSize = get(gridSize);
+    const originalAnchor = state.originalPositions.get(state.dragAnchorPoint);
     
     if (originalAnchor) {
-      // Calculate where the anchor point would be without snapping
+      // Calculate grid snapped position
       const unsnappedX = originalAnchor.x + dx;
       const unsnappedY = originalAnchor.y + dy;
+      const snappedX = snapToGrid(unsnappedX, gridSnapSize);
+      const snappedY = snapToGrid(unsnappedY, gridSnapSize);
       
-      // Calculate where the anchor point should be with snapping
-      const snappedX = snapToGrid(unsnappedX, get(gridSize));
-      const snappedY = snapToGrid(unsnappedY, get(gridSize));
-      
-      // Adjust the deltas to account for the snap
+      // Adjust movement to account for snapping
       dx += (snappedX - unsnappedX);
       dy += (snappedY - unsnappedY);
     }
   }
   
-  // Update positions for preview using the adjusted deltas
-  if (currentDiagram.points && Array.isArray(currentDiagram.points)) {
-    currentDiagram.points.forEach((point) => {
-      if (currentState.selectedPoints.has(point.iri)) {
-        const original = currentState.originalPositions.get(point.iri);
-        if (original) {
-          // Apply the adjusted deltas to maintain relative positions
-          point.x = original.x + dx;
-          point.y = original.y + dy;
-        }
-      }
-    });
+  return { dx, dy };
+}
+
+function updateSelectedPointPositions(diagram: DiagramModel, state: InteractionState, dx: number, dy: number) {
+  if (!diagram.points || !Array.isArray(diagram.points)) {
+    return;
   }
   
-  interactionState.update(state => ({
-    ...state,
-    dragEnd: position
-  }));
-  
-  // Force diagram update
-  diagramData.set(currentDiagram);
+  diagram.points.forEach(point => {
+    if (state.selectedPoints.has(point.iri)) {
+      const original = state.originalPositions.get(point.iri);
+      if (original) {
+        point.x = original.x + dx;
+        point.y = original.y + dy;
+      }
+    }
+  });
 }
 
 export function endDragging(position: Point2D): MovePointsByDeltaData | null {
