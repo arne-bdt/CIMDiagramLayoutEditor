@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { get } from 'svelte/store';
 import type { DiagramObjectModel } from '../../core/models/DiagramModel';
-import type { DeltaVector, Point2D, MovePointsByDeltaData } from '../../core/models/types';
+import type { Point2D, MovePointsByDeltaData } from '../../core/models/types';
 import { PointModel } from '../../core/models/PointModel';
 import { SparqlService } from '../../services/SparqlService';
 import { PointQueryBuilder } from '../../queries/PointQueryBuilder';

@@ -383,102 +383,144 @@ export class ObjectService {
    * Rotate selected objects around the center of selection
    */
   async rotateSelectedObjects(degrees: number): Promise<boolean> {
+    const { objectIris, validationError } = this.validateSelectedObjectsForRotation();
+    
+    if (validationError) {
+      updateStatus(validationError);
+      return false;
+    }
+    
+    // Ensure all points of these objects are selected
+    this.selectAllPointsOfObjects(objectIris);
+    
+    // Calculate rotation parameters
+    const center = this.calculateRotationCenter(objectIris);
+    const { sin, cos } = this.getRotationTrigValues(degrees);
+    
+    // Start operation
+    setLoading(true);
+    updateStatus(`Rotating ${objectIris.size} diagram objects...`);
+    
+    try {
+      // Calculate new positions and update local model
+      const pointsToRotate = this.calculateRotatedPositions(objectIris, center, sin, cos);
+      
+      // Update local model first
+      this.updateLocalPointPositions(pointsToRotate);
+      
+      // Prepare data for SPARQL update
+      const updateData = this.preparePositionUpdateData(pointsToRotate);
+      
+      // Send update to server
+      await this.updatePointPositionsInSparql(updateData);
+      
+      updateStatus(`Rotated ${objectIris.size} diagram objects by ${degrees} degrees`);
+      return true;
+    } catch (error) {
+      await this.handleRotationError(error);
+      return false; 
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  validateSelectedObjectsForRotation() {
     const currentState = get(interactionState);
     const currentDiagram = get(diagramData);
     
     if (!currentDiagram || currentState.selectedPoints.size === 0) {
-      updateStatus('Nothing selected to rotate');
-      return false;
+      return { objectIris: new Set<string>(), validationError: 'Nothing selected to rotate' };
     }
     
-    // Find all parent DiagramObjects of selected points
+    // Find parent objects
     const objectIris = new Set<string>();
-    
     currentState.selectedPoints.forEach(pointIri => {
       const point = currentDiagram.points.find(p => p.iri === pointIri);
-      if (point && point.parentObject) {
+      if (point?.parentObject) {
         objectIris.add(point.parentObject.iri);
       }
     });
     
     if (objectIris.size === 0) {
-      updateStatus('No objects to rotate');
-      return false;
+      return { objectIris, validationError: 'No objects to rotate' };
     }
     
-    // Select all points of these objects
-    this.selectAllPointsOfObjects(objectIris);
-    
-    // Find center of selection
-    const bounds = this.getObjectsBounds(objectIris);
-    const center = this.getBoundsCenter(bounds);
-    
-    // Convert degrees to radians
+    return { objectIris, validationError: null };
+  }
+  
+  getRotationTrigValues(degrees: number) {
     const radians = (degrees * Math.PI) / 180;
-    
-    // Calculate the sine and cosine of the angle
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-    
-    // Start loading
-    setLoading(true);
-    updateStatus(`Rotating ${objectIris.size} diagram objects...`);
-    
-    try {
-      // Get all points that belong to selected objects
-      const pointsToRotate: { point: any; newX: number; newY: number }[] = [];
-      
-      currentDiagram.points.forEach(point => {
-        if (point.parentObject && objectIris.has(point.parentObject.iri)) {
-          // Calculate new position after rotation
-          const dx = point.x - center.x;
-          const dy = point.y - center.y;
-          
-          // Apply rotation matrix
-          const newX = center.x + (dx * cos - dy * sin);
-          const newY = center.y + (dx * sin + dy * cos);
-          
-          pointsToRotate.push({ point, newX, newY });
-        }
-      });
-      
-      // Update points in the model
-      pointsToRotate.forEach(({ point, newX, newY }) => {
-        point.x = newX;
-        point.y = newY;
-      });
-      
-      // Update the diagram
-      diagramData.set(currentDiagram);
-      
-      // Create update data for SPARQL
-      const updateData = {
-        points: pointsToRotate.map(({ point }) => point.iri),
-        newPositions: pointsToRotate.map(({ newX, newY }) => ({ x: newX, y: newY }))
-      };
-      
-      // Update points in SPARQL
-      const query = this.pointQueryBuilder.buildUpdateDiagramPointPositionsQuery(
-        updateData.points, updateData.newPositions, get(cimNamespace)
-      );
+    return {
+      sin: Math.sin(radians),
+      cos: Math.cos(radians)
+    };
+  }
+  
+  calculateRotationCenter(objectIris: Set<string>) {
+    const bounds = this.getObjectsBounds(objectIris);
+    return this.getBoundsCenter(bounds);
+  }
+  
+  calculateRotatedPositions(objectIris: Set<string>, center: Point2D, sin: number, cos: number) 
+    : { point: any; newX: number; newY: number }[] {
+    const currentDiagram = get(diagramData);
+    if (!currentDiagram) {
+      console.error('No diagram data found');
+      return [];
+    }
 
-      await this.sparqlService.executeUpdate(query);
-      
-      updateStatus(`Rotated ${objectIris.size} diagram objects by ${degrees} degrees`);
-
-      return true;
-    } catch (error) {
-      console.error('Error rotating objects:', error);
-      updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
-
-      // Reload the diagram
-      const diagramIri = get(selectedDiagram);
-      if (diagramIri) {
-        await this.diagramService.loadDiagramLayout(diagramIri);
+    const pointsToRotate: { point: any; newX: number; newY: number }[] = [];
+    
+    currentDiagram.points.forEach(point => {
+      if (point.parentObject && objectIris.has(point.parentObject.iri)) {
+        // Apply rotation matrix
+        const dx = point.x - center.x;
+        const dy = point.y - center.y;
+        const newX = center.x + (dx * cos - dy * sin);
+        const newY = center.y + (dx * sin + dy * cos);
+        
+        pointsToRotate.push({ point, newX, newY });
       }
-      return false; 
-    } finally {
-      setLoading(false);
+    });
+    
+    return pointsToRotate;
+  }
+  
+  updateLocalPointPositions(pointsToRotate: { point: any; newX: number; newY: number }[]) {
+    pointsToRotate.forEach(({ point, newX, newY }) => {
+      point.x = newX;
+      point.y = newY;
+    });
+    
+    // Update the diagram
+    diagramData.set(get(diagramData));
+  }
+  
+  preparePositionUpdateData(pointsToRotate: { point: any; newX: number; newY: number }[]) {
+    return {
+      points: pointsToRotate.map(({ point }) => point.iri),
+      newPositions: pointsToRotate.map(({ newX, newY }) => ({ x: newX, y: newY }))
+    };
+  }
+  
+  async updatePointPositionsInSparql(updateData: { points: string[]; newPositions: Array<{ x: number; y: number }> }) {
+    const query = this.pointQueryBuilder.buildUpdateDiagramPointPositionsQuery(
+      updateData.points, 
+      updateData.newPositions, 
+      get(cimNamespace)
+    );
+    
+    await this.sparqlService.executeUpdate(query);
+  }
+  
+  async handleRotationError(error: any) {
+    console.error('Error rotating objects:', error);
+    updateStatus(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // Reload the diagram
+    const diagramIri = get(selectedDiagram);
+    if (diagramIri) {
+      await this.diagramService.loadDiagramLayout(diagramIri);
     }
   }
 
