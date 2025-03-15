@@ -87,28 +87,65 @@ export class SparqlService {
    * @returns Query results or response
    */
   private async executeSparql(query: string, type: SparqlOperationType): Promise<any> {
-    const endpoint = type === SparqlOperationType.QUERY ? this.endpoint : this.updateEndpoint;
+    if (!this.isEndpointConfigured()) {
+      throw new Error('SPARQL endpoint not configured');
+    }
+    
+    const endpoint = this.getEndpointForOperationType(type);
     const param = type === SparqlOperationType.QUERY ? 'query' : 'update';
     
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        ...(type === SparqlOperationType.QUERY && {'Accept': 'application/sparql-results+json'})
-      },
-      body: `${param}=${encodeURIComponent(query)}`
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`SPARQL ${type} failed: ${response.status} ${response.statusText}\n${errorText}`);
+    try {
+      const response = await this.sendSparqlRequest(endpoint, param, query, type);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SPARQL ${type} failed: ${response.status} ${response.statusText}\n${errorText}`);
+      }
+      
+      return type === SparqlOperationType.QUERY ? await response.json() : response;
+    } catch (error) {
+      this.logSparqlError(error, type, query);
+      throw error;
     }
+  }
+  
+  private isEndpointConfigured(): boolean {
+    return !!this.endpoint && !!this.updateEndpoint;
+  }
+  
+  private getEndpointForOperationType(type: SparqlOperationType): string {
+    return type === SparqlOperationType.QUERY ? this.endpoint : this.updateEndpoint;
+  }
+  
+  private async sendSparqlRequest(
+    endpoint: string, 
+    paramName: string, 
+    query: string, 
+    type: SparqlOperationType
+  ): Promise<Response> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
     
     if (type === SparqlOperationType.QUERY) {
-      return await response.json();
+      headers['Accept'] = 'application/sparql-results+json';
     }
     
-    return response;
+    return fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: `${paramName}=${encodeURIComponent(query)}`
+    });
+  }
+  
+  private logSparqlError(error: unknown, type: SparqlOperationType, query: string): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    console.error(`SPARQL ${type} error:`, {
+      message: errorMessage,
+      query: query,
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
