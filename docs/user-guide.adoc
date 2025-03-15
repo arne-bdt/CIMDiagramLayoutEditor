@@ -64,7 +64,10 @@ The application interface consists of these main sections:
 |Hold kbd:[Ctrl] and drag to create a selection rectangle
 
 |*Move Points*
-|Select one or more points, then click and drag any selected point
+|Select one or more points, then click and drag any selected point. By default, points snap to the grid when moved.
+
+|*Disable Grid Snapping*
+|Hold kbd:[Alt] while dragging points to temporarily disable the snap-to-grid behavior
 
 |*View Point Details*
 |Hover over a point to see its tooltip with detailed information
@@ -75,6 +78,19 @@ The application interface consists of these main sections:
 |*Toggle Polygon*
 |Select a point and use the "Polygon" checkbox that appears
 |===
+
+=== Moving and Grid Snapping
+
+When moving points in the diagram, there are several behaviors to be aware of:
+
+* *Default Behavior*: Selected points snap to the grid when moved, aligning precisely with grid lines.
+* *Grid Snapping*: When enabled (default), points are automatically aligned to the nearest grid line during movement.
+* *Temporary Override*: Hold the kbd:[Alt] key while dragging to temporarily disable grid snapping, allowing free movement.
+* *Grid Size*: Adjustable in the Grid Controls panel - affects the spacing between grid lines and the snapping positions.
+* *Multiple Points*: When moving multiple selected points, they maintain their relative positions while the entire selection snaps to the grid.
+
+[TIP]
+You can permanently toggle the snap-to-grid behavior using the checkbox in the Grid Controls panel.
 
 === Editing Operations
 
@@ -151,11 +167,22 @@ The navigation map is especially useful for very large diagrams where it's easy 
 |Toggle to display a grid on the canvas background
 
 |*Snap to Grid*
-|Toggle to automatically align points to the nearest grid lines when moving
+|Toggle to enable/disable automatic alignment of points to the nearest grid lines when moving
 
 |*Grid Size*
-|Adjust the spacing between grid lines
+|Adjust the spacing between grid lines (smaller values provide finer control)
 |===
+
+=== Grid Snapping Controls
+
+The application provides several ways to control grid snapping:
+
+* *Permanent Setting*: Use the "Snap to Grid" checkbox in the Grid Controls panel to enable or disable snapping globally
+* *Temporary Override*: Hold the kbd:[Alt] key while dragging to temporarily disable snapping even when it's enabled globally
+* *Grid Size Adjustment*: Change the grid size to make snapping more precise (smaller values) or coarser (larger values)
+
+[NOTE]
+When moving multiple points, the first selected point will snap to the grid, and all other points will maintain their relative positions to that point.
 
 == Keyboard Shortcuts Summary
 
@@ -168,6 +195,9 @@ The navigation map is especially useful for very large diagrams where it's easy 
 
 |kbd:[Ctrl] + Drag
 |Select multiple points within a rectangle
+
+|kbd:[Alt] + Drag
+|Move selected points with grid snapping temporarily disabled
 
 |kbd:[Ctrl+C]
 |Copy selected diagram objects
@@ -224,5 +254,6 @@ The editor communicates with the SPARQL endpoint in these ways:
 * *Saving your work*: Changes are written to the SPARQL endpoint immediately after editing
 * *Complex diagrams*: Use selection rectangle (Ctrl+drag) to select multiple points in dense areas
 * *Precision placement*: Enable "Snap to Grid" and adjust grid size for accurate positioning
+* *Fine-tuning placement*: Use Alt+drag for precise adjustments when grid snapping is too restrictive
 * *Viewing details*: Pin tooltips when you need to refer to point information while working
 * *Navigating large diagrams*: Use the navigation map to maintain context and quickly move to different areas
