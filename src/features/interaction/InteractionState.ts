@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import type { InteractionState, Point2D, MovePointsByDeltaData } from '../../core/models/types';
 import { InteractionMode } from '../../core/models/types';
-import { viewTransform } from '../canvas/CanvasState';
+import { viewTransform, gridSize } from '../canvas/CanvasState';
 import { diagramData } from '../diagram/DiagramState';
 import { AppConfig } from '../../core/config/AppConfig';
 
@@ -122,10 +122,7 @@ export function updateDragging(position: Point2D, altKeyPressed: boolean = false
     ...state,
     altKeyPressed
   }));
-  
-  // Get current grid size from AppConfig
-  const currentGridSize = AppConfig.grid.size;
-  
+    
   // By default, snap to grid. Only disable snapping when ALT is pressed
   const isSnapEnabled = !altKeyPressed;
   
@@ -140,8 +137,8 @@ export function updateDragging(position: Point2D, altKeyPressed: boolean = false
       const unsnappedY = originalAnchor.y + dy;
       
       // Calculate where the anchor point should be with snapping
-      const snappedX = snapToGrid(unsnappedX, currentGridSize);
-      const snappedY = snapToGrid(unsnappedY, currentGridSize);
+      const snappedX = snapToGrid(unsnappedX, get(gridSize));
+      const snappedY = snapToGrid(unsnappedY, get(gridSize));
       
       // Adjust the deltas to account for the snap
       dx += (snappedX - unsnappedX);
