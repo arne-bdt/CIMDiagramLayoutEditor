@@ -1,3 +1,5 @@
+# Project moved to https://github.com/SOPTIM/CIMDiagramLayoutEditor
+
 # CGMES DiagramLayout Editor (Svelte & TypeScript)
 
 A modern web application for editing CGMES (Common Grid Model Exchange Standard) diagram layouts using Svelte and TypeScript. This tool allows power system engineers and grid operators to visualize and modify network diagrams through an interactive web interface.
